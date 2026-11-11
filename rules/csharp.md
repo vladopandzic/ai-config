@@ -74,6 +74,7 @@ When a project already has its own convention (`.editorconfig`, constant casing,
 
 ## XML documentation
 
+- Write an XML summary for every public method that contains business logic or has side effects.
 - Method XML summaries should explain motivation first, behavior and side effects second, and a concrete example third. Separate those paragraphs with blank comment lines and `<para>` elements. Use plain language and explain the actual source, destination and values rather than vague terms.
 
 Example:
