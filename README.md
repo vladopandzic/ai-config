@@ -29,6 +29,17 @@ Shared rules go in `AGENTS.md`. `CLAUDE.md` only imports it and holds Claude-onl
    git -C $HOME\ai-config config --local --add credential.helper '!f() { test "$1" = get && echo username=vladopandzic && echo password=$(gh auth token --user vladopandzic); }; f'
    ```
 
+## Using these rules on someone else's machine
+
+The rules work without any of my personal setup. A few things refer to it and are simply skipped or need adjusting:
+
+| What | Where | What happens without it |
+|---|---|---|
+| `~/.claude/clients.md` (my clients, trackers, commit styles) | `rules/git.md` | Not in this repo. Without it the commit style comes from the repository's git history only. |
+| GitHub account `vladopandzic` | README "New machine" steps | Clone with your own access, or copy the files. |
+| The `~/ai-config` location | `AGENTS.md` index, `CLAUDE.md` import | Clone into `~/ai-config`, or change the paths in those two files. |
+| Windows Developer Mode | `install.ps1` (symlinks) | Without it the links fail; turn it on or copy the files into `~/.claude` and `~/.codex` instead. |
+
 ## Never commit
 
 Credentials and machine state stay out of this repo: `.credentials.json`, `.claude.json`, `auth.json`, `*.cred`, history and session files.

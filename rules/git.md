@@ -6,7 +6,7 @@ Read this before committing, creating a branch, pushing or opening a pull reques
 
 - Commit after each logical step while you work. Each commit is one logical change that builds. Keep refactoring and formatting in separate commits from behavior changes.
 - Never commit on `main`, `master`, `dev` or `develop`. Before the first commit there, ask the user what to name the new branch, and suggest a name that follows the project's convention.
-- Match the commit message style of the repository: look at the user's last ~20 commits and the client's entry in `~/.claude/clients.md`, and use the same format, language and ticket key.
+- Match the commit message style of the repository: look at the user's last ~20 commits and use the same format, language and ticket key. If `~/.claude/clients.md` exists, also follow the commit style given there for this client.
 - Write a one-line subject. Add a body only when the reason for the change is not obvious from the subject and the code.
 - Never add "Co-Authored-By" lines or any AI attribution (Claude, Codex or similar) to commit messages.
 - Do not commit build output, local settings or secrets (`bin/`, `obj/`, `.env`, local appsettings, `.claude/settings.local.json`).
