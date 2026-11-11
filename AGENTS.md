@@ -16,6 +16,7 @@ Before writing or reviewing code, read the guide that applies:
 - Tests (when to write them, what to test, frameworks, running) → `~/ai-config/rules/tests.md`. Read it also when fixing a bug or adding business logic, because those changes need tests.
 - Database (queries, migrations, raw SQL, running anything against a database) → `~/ai-config/rules/database.md`
 - HTTP APIs (controllers, DTOs, errors, status codes) → `~/ai-config/rules/api.md`
+- Git (commits, branches, push, pull requests) → `~/ai-config/rules/git.md`. Read it before any commit, branch, push or PR.
 
 ## Effort and shortcuts
 
@@ -24,12 +25,3 @@ Before writing or reviewing code, read the guide that applies:
 - Do not leave workarounds, hacks, `TODO`s or "for now" solutions silently. If you take a shortcut, say so explicitly and explain what the proper solution would be.
 - If the proper solution is much larger in scope than the task (many files, behavior changes), describe it and ask — scope is the user's decision, effort is not a reason.
 - When asked for a time estimate, estimate your own working time, separately from the time the user needs to review and test.
-
-## Git commits
-
-- Never add "Co-Authored-By" lines to commit messages.
-- Never add any AI attribution (Claude, Codex or similar) to commit messages.
-
-## Git branches
-
-- Never let a new feature branch track `origin/master` (or `origin/main`). After `git checkout -b NEW origin/master` (or any similar command), Git sets the new branch to track master — a future bare `git push` or `git pull` would hit master. Immediately run `git branch --unset-upstream <NEW>`, or use `git switch -c NEW --no-track origin/master` from the start. The branch should only get an upstream when it is first pushed with `git push -u origin NEW`, which points it at its own remote.
