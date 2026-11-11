@@ -7,12 +7,13 @@
 - Organize code by real responsibilities. Do not add classes, abstractions or files just to split code. Related small helpers may share a file with the concept they support; one class per file is not a goal in itself.
 - Avoid magic strings in application logic. Centralize configuration/protocol keys, use enums for closed sets, and convert and validate external strings at the boundary. Do not use human-readable messages as control-flow signals.
 - When a name in code directly represents a database table or column, keep the actual name from the database schema (in whatever language it is) instead of a loose translation. State the exact mapping in documentation.
-- Keep production behavior unchanged during naming/documentation refactors unless a behavior change is explicitly part of the task. Use meaningful tests for risks and boundary behavior; avoid tests that merely repeat getters or implementation details.
+- Keep production behavior unchanged during naming/documentation refactors unless a behavior change is explicitly part of the task.
 
 ## Language and topic guides
 
 Before writing or reviewing code, read the guide that applies:
 - C# / .NET → `~/ai-config/rules/csharp.md`
+- Tests (when to write them, what to test, frameworks, running) → `~/ai-config/rules/tests.md`. Read it also when fixing a bug or adding business logic, because those changes need tests.
 
 ## Effort and shortcuts
 

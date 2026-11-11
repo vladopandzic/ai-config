@@ -59,9 +59,7 @@ When a project already has its own convention (`.editorconfig`, constant casing,
 
 ## Tests
 
-- Follow the test framework the project already uses. New projects use NUnit and NSubstitute.
-- Test names follow `Method_WhenCondition_ShouldResult`.
-- Mark the sections with `// Arrange`, `// Act`, `// Assert`.
+- See `~/ai-config/rules/tests.md`.
 
 ## Comments and old code
 
