@@ -1,7 +1,7 @@
 # Links the AI rule files from this repo into the places where Claude Code and Codex read them.
 #
 # Run once on every machine after cloning (needs Windows Developer Mode for symlinks without admin):
-#   git clone https://github.com/vladopandzic/ai-config.git $HOME\ai-config
+#   clone into $HOME\ai-config (see README.md), then:
 #   & $HOME\ai-config\install.ps1
 #
 # Safe to run again: links that already point to this repo are left alone, and an existing

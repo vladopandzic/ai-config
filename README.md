@@ -13,11 +13,20 @@ Shared rules go in `AGENTS.md`. `CLAUDE.md` only imports it and holds Claude-onl
 ## New machine
 
 1. Turn on Windows Developer Mode (Settings → System → For developers), so symlinks work without admin.
-2. Clone into the home folder (the rule files reference `~/ai-config`):
+2. Clone into the home folder (the rule files reference `~/ai-config`). The repo is private, so clone with the personal GitHub account:
 
    ```powershell
-   git clone https://github.com/vladopandzic/ai-config.git $HOME\ai-config
+   $env:GH_TOKEN = gh auth token --user vladopandzic
+   gh repo clone vladopandzic/ai-config $HOME\ai-config
+   Remove-Item Env:GH_TOKEN
    & $HOME\ai-config\install.ps1
+   ```
+
+3. If `gh` there is also logged in to a work account, make this repo always use the personal one:
+
+   ```powershell
+   git -C $HOME\ai-config config --local --add credential.helper ""
+   git -C $HOME\ai-config config --local --add credential.helper '!f() { test "$1" = get && echo username=vladopandzic && echo password=$(gh auth token --user vladopandzic); }; f'
    ```
 
 ## Never commit
