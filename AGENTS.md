@@ -17,6 +17,7 @@ Before writing or reviewing code, read the guide that applies:
 - Database (queries, migrations, raw SQL, running anything against a database) → `~/ai-config/rules/database.md`
 - HTTP APIs (controllers, DTOs, errors, status codes) → `~/ai-config/rules/api.md`
 - Git (commits, branches, push, pull requests) → `~/ai-config/rules/git.md`. Read it before any commit, branch, push or PR.
+- Security (secrets, authorization, personal data, uploads, CORS, packages) → `~/ai-config/rules/security.md`. Read it before writing code that handles auth, user data, files or configuration, and before adding a package.
 
 ## Effort and shortcuts
 
