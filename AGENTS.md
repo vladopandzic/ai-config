@@ -14,6 +14,7 @@
 Before writing or reviewing code, read the guide that applies:
 - C# / .NET → `~/ai-config/rules/csharp.md`
 - Tests (when to write them, what to test, frameworks, running) → `~/ai-config/rules/tests.md`. Read it also when fixing a bug or adding business logic, because those changes need tests.
+- Database (queries, migrations, raw SQL, running anything against a database) → `~/ai-config/rules/database.md`
 
 ## Effort and shortcuts
 

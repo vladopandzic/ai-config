@@ -48,10 +48,7 @@ When a project already has its own convention (`.editorconfig`, constant casing,
 
 ## Data access
 
-- Filter, sort and page in the database. Never load rows into memory and filter them there.
-- Use `AsNoTracking()` for read-only EF queries.
-- Use LINQ method syntax; query syntax is fine for queries with several joins.
-- Give intermediate queries meaningful names (`activeReservationsQuery`, then `activeReservations = await ...ToListAsync()`).
+- See `~/ai-config/rules/database.md`.
 
 ## Mapping
 

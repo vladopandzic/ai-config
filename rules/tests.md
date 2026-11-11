@@ -1,7 +1,6 @@
 ---
 paths:
-  - "**/*Tests.cs"
-  - "**/*Tests/**/*.cs"
+  - "**/*.cs"
 ---
 
 # Tests guide
