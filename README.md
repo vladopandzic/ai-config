@@ -2,13 +2,33 @@
 
 My rules for AI coding agents (Claude Code and Codex), shared between my machines.
 
-| File | Read by | Linked to |
+| File | Read by | Connected through |
 |---|---|---|
 | `AGENTS.md` | Codex directly, Claude through `CLAUDE.md` | `~/.codex/AGENTS.md` |
 | `CLAUDE.md` | Claude only | `~/.claude/CLAUDE.md` |
-| `rules/*.md` | Claude automatically by file path, Codex through the index in `AGENTS.md` | `~/.claude/rules/` |
+| `rules/*.md` | Claude automatically by file path, Codex through the index in `AGENTS.md` | `~/.claude/rules/ai-config-*.md` |
 
 Shared rules go in `AGENTS.md`. `CLAUDE.md` only imports it and holds Claude-only notes.
+
+## What install.ps1 does
+
+It never deletes or replaces a file the user already has. Running it again only adds what is missing.
+
+| Target | If it already exists | If it is missing |
+|---|---|---|
+| `~/.claude/CLAUDE.md` | Keeps the content, appends `@~/ai-config/CLAUDE.md` | Creates it with that import line |
+| `~/.codex/AGENTS.md` | Keeps the content, appends a "Shared rules" section pointing Codex to `~/ai-config/AGENTS.md` (Codex has no imports) | Links it to this repo's `AGENTS.md` |
+| `~/.claude/rules/ai-config-<guide>.md` | A real file with that name is left untouched and reported as skipped | Links it to `rules/<guide>.md` |
+
+Before appending to an existing file it saves a copy as `<file>.backup-<timestamp>`. The user's own files in `~/.claude/rules/` keep working next to these guides.
+
+## Updating after a change on another machine
+
+```powershell
+& $HOME\ai-config\update.ps1
+```
+
+It runs `git pull` and then `install.ps1`, so guides added on the other machine are linked too.
 
 ## New machine
 

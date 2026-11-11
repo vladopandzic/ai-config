@@ -1,52 +1,194 @@
-# Links the AI rule files from this repo into the places where Claude Code and Codex read them.
+# Connects the AI rules in this repo to the places where Claude Code and Codex read them,
+# without deleting or replacing anything the user already has.
 #
-# Run once on every machine after cloning (needs Windows Developer Mode for symlinks without admin):
-#   clone into $HOME\ai-config (see README.md), then:
+# Run once on every machine after cloning into $HOME\ai-config (see README.md):
 #   & $HOME\ai-config\install.ps1
 #
-# Safe to run again: links that already point to this repo are left alone, and an existing
-# regular file is renamed to <name>.backup-<timestamp> before the link replaces it.
+# What it does (safe to run again; it only adds what is missing):
+#   ~/.claude/CLAUDE.md       existing file: keeps its content and appends one import line for these rules.
+#                             missing file:  creates it with that import line.
+#   ~/.codex/AGENTS.md        existing file: keeps its content and appends a short section telling Codex
+#                             to read ~/ai-config/AGENTS.md.
+#                             missing file:  links it to this repo's AGENTS.md.
+#   ~/.claude/rules/          links each guide as ai-config-<name>.md, so it never collides with the
+#                             user's own rule files.
+# Every existing file is copied to <name>.backup-<timestamp> before anything is appended to it.
+# Symlinks need Windows Developer Mode (or an admin shell).
+
+param(
+    [string] $HomeDirectory = $env:USERPROFILE
+)
 
 $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = $PSScriptRoot
-$homeDirectory = $env:USERPROFILE
+$RULES_MARKER = '<!-- ai-config: shared rules -->'
+$GUIDE_LINK_PREFIX = 'ai-config-'
 
-function New-RuleFileLink
+function Write-Status
 {
     param(
-        [string] $LinkPath,
-        [string] $RepositoryFilePath
+        [string] $Status,
+        [string] $Message
     )
 
-    $existingItem = Get-Item -LiteralPath $LinkPath -Force -ErrorAction SilentlyContinue
-    $linkAlreadyPointsToRepository = $existingItem -and $existingItem.LinkType -eq 'SymbolicLink' -and $existingItem.Target -eq $RepositoryFilePath
+    Write-Host ('{0,-9}{1}' -f $Status, $Message)
+}
 
-    if ($linkAlreadyPointsToRepository)
+function Test-LinkPointsTo
+{
+    param(
+        [System.IO.FileSystemInfo] $Item,
+        [string] $TargetPath
+    )
+
+    return $Item -and $Item.LinkType -eq 'SymbolicLink' -and $Item.Target -eq $TargetPath
+}
+
+function Backup-File
+{
+    param(
+        [string] $FilePath
+    )
+
+    $backupPath = "$FilePath.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+    Copy-Item -LiteralPath $FilePath -Destination $backupPath
+    Write-Status -Status 'backup' -Message "$FilePath -> $backupPath"
+}
+
+function Add-SharedRulesSection
+{
+    param(
+        [string] $FilePath,
+        [string] $SectionText
+    )
+
+    $existingContent = Get-Content -LiteralPath $FilePath -Raw
+    $sectionAlreadyAdded = $existingContent -and $existingContent.Contains($RULES_MARKER)
+
+    if ($sectionAlreadyAdded)
     {
-        Write-Host "ok       $LinkPath"
+        Write-Status -Status 'ok' -Message $FilePath
         return
     }
 
-    if ($existingItem)
-    {
-        $backupPath = "$LinkPath.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-        Move-Item -LiteralPath $LinkPath -Destination $backupPath
-        Write-Host "backup   $LinkPath -> $backupPath"
-    }
+    Backup-File -FilePath $FilePath
+    Add-Content -LiteralPath $FilePath -Value "`n$RULES_MARKER`n$SectionText"
+    Write-Status -Status 'appended' -Message $FilePath
+}
+
+function New-FileLink
+{
+    param(
+        [string] $LinkPath,
+        [string] $TargetPath
+    )
 
     New-Item -ItemType Directory -Force -Path (Split-Path $LinkPath) | Out-Null
-    New-Item -ItemType SymbolicLink -Path $LinkPath -Target $RepositoryFilePath | Out-Null
-    Write-Host "linked   $LinkPath -> $RepositoryFilePath"
+    New-Item -ItemType SymbolicLink -Path $LinkPath -Target $TargetPath | Out-Null
+    Write-Status -Status 'linked' -Message "$LinkPath -> $TargetPath"
 }
 
-# Shared rules: Codex reads AGENTS.md directly, Claude reads CLAUDE.md, which imports AGENTS.md.
-New-RuleFileLink -LinkPath "$homeDirectory\.codex\AGENTS.md" -RepositoryFilePath "$repositoryRoot\AGENTS.md"
-New-RuleFileLink -LinkPath "$homeDirectory\.claude\CLAUDE.md" -RepositoryFilePath "$repositoryRoot\CLAUDE.md"
-
-# Language guides: Claude loads files in ~/.claude/rules automatically for matching paths.
-# Codex finds the same files through the index in AGENTS.md.
-foreach ($guide in Get-ChildItem -Path "$repositoryRoot\rules" -Filter '*.md')
+function Connect-ClaudeInstructions
 {
-    New-RuleFileLink -LinkPath "$homeDirectory\.claude\rules\$($guide.Name)" -RepositoryFilePath $guide.FullName
+    $claudeFilePath = "$HomeDirectory\.claude\CLAUDE.md"
+    $repositoryClaudeFilePath = "$repositoryRoot\CLAUDE.md"
+    $existingItem = Get-Item -LiteralPath $claudeFilePath -Force -ErrorAction SilentlyContinue
+
+    if (Test-LinkPointsTo -Item $existingItem -TargetPath $repositoryClaudeFilePath)
+    {
+        Write-Status -Status 'ok' -Message $claudeFilePath
+        return
+    }
+
+    $importLine = '@~/ai-config/CLAUDE.md'
+
+    if (-not $existingItem)
+    {
+        New-Item -ItemType Directory -Force -Path (Split-Path $claudeFilePath) | Out-Null
+        Set-Content -LiteralPath $claudeFilePath -Value "$RULES_MARKER`n$importLine"
+        Write-Status -Status 'created' -Message $claudeFilePath
+        return
+    }
+
+    Add-SharedRulesSection -FilePath $claudeFilePath -SectionText $importLine
 }
+
+function Connect-CodexInstructions
+{
+    $codexFilePath = "$HomeDirectory\.codex\AGENTS.md"
+    $repositoryAgentsFilePath = "$repositoryRoot\AGENTS.md"
+    $existingItem = Get-Item -LiteralPath $codexFilePath -Force -ErrorAction SilentlyContinue
+
+    if (Test-LinkPointsTo -Item $existingItem -TargetPath $repositoryAgentsFilePath)
+    {
+        Write-Status -Status 'ok' -Message $codexFilePath
+        return
+    }
+
+    if (-not $existingItem)
+    {
+        New-FileLink -LinkPath $codexFilePath -TargetPath $repositoryAgentsFilePath
+        return
+    }
+
+    # Codex cannot import files, so the user's own AGENTS.md gets a pointer to the shared rules.
+    $pointerSection = @'
+## Shared rules
+
+Read and follow `~/ai-config/AGENTS.md` before writing or reviewing code. It contains the shared coding rules and the index of language and topic guides.
+'@
+    Add-SharedRulesSection -FilePath $codexFilePath -SectionText $pointerSection
+}
+
+function Connect-ClaudeGuides
+{
+    $claudeRulesDirectory = "$HomeDirectory\.claude\rules"
+
+    foreach ($guide in Get-ChildItem -Path "$repositoryRoot\rules" -Filter '*.md')
+    {
+        $linkPath = "$claudeRulesDirectory\$GUIDE_LINK_PREFIX$($guide.Name)"
+        $existingItem = Get-Item -LiteralPath $linkPath -Force -ErrorAction SilentlyContinue
+
+        if (Test-LinkPointsTo -Item $existingItem -TargetPath $guide.FullName)
+        {
+            Write-Status -Status 'ok' -Message $linkPath
+            continue
+        }
+
+        if ($existingItem)
+        {
+            Write-Status -Status 'skipped' -Message "$linkPath already exists and is not a link to this repo; left untouched"
+            continue
+        }
+
+        New-FileLink -LinkPath $linkPath -TargetPath $guide.FullName
+    }
+
+    Remove-UnprefixedGuideLinks -ClaudeRulesDirectory $claudeRulesDirectory
+}
+
+function Remove-UnprefixedGuideLinks
+{
+    # Earlier versions linked guides without the prefix. Those links point into this repo,
+    # so removing them deletes no content; any real file with the same name is never touched.
+    param(
+        [string] $ClaudeRulesDirectory
+    )
+
+    foreach ($guide in Get-ChildItem -Path "$repositoryRoot\rules" -Filter '*.md')
+    {
+        $oldLinkPath = "$ClaudeRulesDirectory\$($guide.Name)"
+        $oldItem = Get-Item -LiteralPath $oldLinkPath -Force -ErrorAction SilentlyContinue
+
+        if (Test-LinkPointsTo -Item $oldItem -TargetPath $guide.FullName)
+        {
+            Remove-Item -LiteralPath $oldLinkPath
+            Write-Status -Status 'renamed' -Message "$oldLinkPath -> $GUIDE_LINK_PREFIX$($guide.Name)"
+        }
+    }
+}
+
+Connect-ClaudeInstructions
+Connect-CodexInstructions
+Connect-ClaudeGuides
