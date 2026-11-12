@@ -12,6 +12,7 @@
 #                             missing file:  links it to this repo's AGENTS.md.
 #   ~/.claude/rules/          links each guide as ai-config-<name>.md, so it never collides with the
 #                             user's own rule files.
+#   AGENTS.local.md           missing file:  creates it from a template for personal preferences (not in git).
 # Every existing file is copied to <name>.backup-<timestamp> before anything is appended to it.
 # Symlinks need Windows Developer Mode (or an admin shell).
 
@@ -189,6 +190,26 @@ function Remove-UnprefixedGuideLinks
     }
 }
 
+function New-PersonalPreferencesFile
+{
+    $personalFilePath = "$repositoryRoot\AGENTS.local.md"
+
+    if (Test-Path -LiteralPath $personalFilePath)
+    {
+        Write-Status -Status 'ok' -Message $personalFilePath
+        return
+    }
+
+    $template = @'
+# Personal preferences
+
+<!-- Not in git. Your own way of working for Claude and Codex: language and tone, tools, how to hand you files. Shared coding rules belong in AGENTS.md. -->
+'@
+    Set-Content -LiteralPath $personalFilePath -Value $template
+    Write-Status -Status 'created' -Message $personalFilePath
+}
+
+New-PersonalPreferencesFile
 Connect-ClaudeInstructions
 Connect-CodexInstructions
 Connect-ClaudeGuides

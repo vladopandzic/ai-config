@@ -7,8 +7,18 @@ My rules for AI coding agents (Claude Code and Codex), shared between my machine
 | `AGENTS.md` | Codex directly, Claude through `CLAUDE.md` | `~/.codex/AGENTS.md` |
 | `CLAUDE.md` | Claude only | `~/.claude/CLAUDE.md` |
 | `rules/*.md` | Claude automatically by file path, Codex through the index in `AGENTS.md` | `~/.claude/rules/ai-config-*.md` |
+| `AGENTS.local.md` (not in git) | Claude through the import in `CLAUDE.md`, Codex through the instruction in `AGENTS.md` | Created by `install.ps1` |
 
 Shared rules go in `AGENTS.md`. `CLAUDE.md` only imports it and holds Claude-only notes.
+
+## Personal preferences
+
+`AGENTS.local.md` holds your own way of working: language and tone, the tools you use, how you want files handed to you. Everything that is about you rather than about the code goes there, so it stays out of the shared rules.
+
+- It is in `.gitignore`, so it never leaves the machine and colleagues using this repo do not see it.
+- `install.ps1` creates it from a short template if it is missing. An existing file is never touched.
+- Where it conflicts with `AGENTS.md`, it wins.
+- It is not synced between machines. Copy it by hand to a new machine.
 
 ## What install.ps1 does
 
@@ -19,6 +29,7 @@ It never deletes or replaces a file the user already has. Running it again only 
 | `~/.claude/CLAUDE.md` | Keeps the content, appends `@~/ai-config/CLAUDE.md` | Creates it with that import line |
 | `~/.codex/AGENTS.md` | Keeps the content, appends a "Shared rules" section pointing Codex to `~/ai-config/AGENTS.md` (Codex has no imports) | Links it to this repo's `AGENTS.md` |
 | `~/.claude/rules/ai-config-<guide>.md` | A real file with that name is left untouched and reported as skipped | Links it to `rules/<guide>.md` |
+| `AGENTS.local.md` in this repo | Left untouched | Creates it from a template |
 
 Before appending to an existing file it saves a copy as `<file>.backup-<timestamp>`. The user's own files in `~/.claude/rules/` keep working next to these guides.
 
@@ -62,4 +73,4 @@ The rules work without any of my personal setup. A few things refer to it and ar
 
 ## Never commit
 
-Credentials and machine state stay out of this repo: `.credentials.json`, `.claude.json`, `auth.json`, `*.cred`, history and session files.
+Credentials and machine state stay out of this repo: `.credentials.json`, `.claude.json`, `auth.json`, `*.cred`, history and session files. Personal preferences go in `AGENTS.local.md`, which git ignores.

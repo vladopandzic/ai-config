@@ -1,5 +1,9 @@
 # Global user preferences
 
+## Personal preferences
+
+- If `~/ai-config/AGENTS.local.md` exists, follow it too. It is not in git and holds the machine owner's own way of working (language, tone, tools). Where it conflicts with this file, it wins. If it is already in your context, do not read it again.
+
 ## Code readability
 
 - Write code that a reader can understand without guessing what a value, name or method means. Prefer explicit domain names over vague names, abbreviations and clever code.

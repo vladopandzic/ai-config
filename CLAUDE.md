@@ -2,6 +2,7 @@
 
 <!-- Shared rules for Claude and Codex live in AGENTS.md (single source). Codex reads it directly; Claude reads it through this import. -->
 @~/ai-config/AGENTS.md
+@~/ai-config/AGENTS.local.md
 
 ## Claude-specific
 
