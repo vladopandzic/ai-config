@@ -34,6 +34,13 @@ Paths in this file are relative to the folder that holds it.
 - After a change, say exactly where it is: repository, branch, file.
 - Check a claim before stating it, not after the user doubts it.
 
+## Keep it simple
+
+- Choose the simplest solution that solves the problem. Do not build for needs nobody asked for.
+- Before adding a library, database, new layer or new mechanism, check what the project already has. If something new is really needed, say why before adding it.
+- Follow the project's existing patterns instead of inventing a new approach.
+- When a solution starts getting complicated, stop and say so, and suggest a simpler option.
+
 ## Code readability
 
 - Write code that a reader can understand without guessing what a value, name or method means. Prefer explicit domain names over vague names, abbreviations and clever code.
