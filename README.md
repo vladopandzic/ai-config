@@ -7,6 +7,7 @@ My rules for AI coding agents (Claude Code and Codex), shared between my machine
 | `AGENTS.md` | Codex directly, Claude through `CLAUDE.md` | `%USERPROFILE%\.codex\AGENTS.md` |
 | `CLAUDE.md` | Claude only | `%USERPROFILE%\.claude\CLAUDE.md` |
 | `rules/*.md` | Claude automatically by file path, Codex through the index in `AGENTS.md` | `%USERPROFILE%\.claude\rules\ai-config-*.md` |
+| `skills\<name>\` | Claude as skills (for example `/self-improve`) | `%USERPROFILE%\.claude\skills\<name>` |
 | `AGENTS.local.md` (not in git) | Claude through the import in `CLAUDE.md`, Codex through the instruction in `AGENTS.md` | Created by `install.ps1` |
 
 Shared rules go in `AGENTS.md`. `CLAUDE.md` only imports it and holds Claude-only notes.
@@ -19,6 +20,19 @@ Shared rules go in `AGENTS.md`. `CLAUDE.md` only imports it and holds Claude-onl
 - `install.ps1` creates it from a short template if it is missing. An existing file is never touched.
 - Where it conflicts with `AGENTS.md`, it wins.
 - It is not synced between machines. Copy it by hand to a new machine.
+
+## Skills
+
+Folders in `skills\` are Claude Code skills. `install.ps1` links each one into `%USERPROFILE%\.claude\skills\` with a junction, so it works without Developer Mode.
+
+### /self-improve
+
+Turns your repeated corrections into rules, in the right file, one proposal at a time and only with your approval.
+
+- `/self-improve`: looks at the current session. Run it after a bigger piece of work.
+- `/self-improve history 30`: looks at your messages from all projects in the last 30 days. Run it about once a month.
+
+It needs Python for the history scan. Your decisions (written, skipped) go to `self-improve.local.md`, which git ignores, so a skipped rule is not proposed again unless it keeps coming back.
 
 ## What install.ps1 does
 

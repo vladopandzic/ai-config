@@ -14,6 +14,8 @@
 #   %USERPROFILE%\.claude\rules\      links each guide as ai-config-<name>.md, so it never collides with the
 #                                     user's own rule files. Without Windows Developer Mode (or an admin shell)
 #                                     symlinks are not allowed, so the guide is copied instead and refreshed on every run.
+#   %USERPROFILE%\.claude\skills\     links each skill folder (for example self-improve) with a junction,
+#                                     which needs no Developer Mode. A folder with the same name is left untouched.
 #   AGENTS.local.md                   missing file:  creates it from a template for personal preferences (not in git).
 # Every existing file is copied to <name>.backup-<timestamp> before anything is appended to it.
 
@@ -46,7 +48,7 @@ function Test-LinkPointsTo
         [string] $TargetPath
     )
 
-    return $Item -and $Item.LinkType -eq 'SymbolicLink' -and $Item.Target -eq $TargetPath
+    return $Item -and $Item.LinkType -in 'SymbolicLink', 'Junction' -and $Item.Target -eq $TargetPath
 }
 
 function Backup-File
@@ -280,7 +282,35 @@ function New-PersonalPreferencesFile
     Write-Status -Status 'created' -Message $personalFilePath
 }
 
+function Connect-ClaudeSkills
+{
+    $claudeSkillsDirectory = "$HomeDirectory\.claude\skills"
+
+    foreach ($skill in Get-ChildItem -Path "$repositoryRoot\skills" -Directory)
+    {
+        $linkPath = "$claudeSkillsDirectory\$($skill.Name)"
+        $existingItem = Get-Item -LiteralPath $linkPath -Force -ErrorAction SilentlyContinue
+
+        if (Test-LinkPointsTo -Item $existingItem -TargetPath $skill.FullName)
+        {
+            Write-Status -Status 'ok' -Message $linkPath
+            continue
+        }
+
+        if ($existingItem)
+        {
+            Write-Status -Status 'skipped' -Message "$linkPath already exists and is not a link to this repo; left untouched"
+            continue
+        }
+
+        New-Item -ItemType Directory -Force -Path $claudeSkillsDirectory | Out-Null
+        New-Item -ItemType Junction -Path $linkPath -Target $skill.FullName | Out-Null
+        Write-Status -Status 'linked' -Message "$linkPath -> $($skill.FullName)"
+    }
+}
+
 New-PersonalPreferencesFile
 Connect-ClaudeInstructions
 Connect-CodexInstructions
 Connect-ClaudeGuides
+Connect-ClaudeSkills
