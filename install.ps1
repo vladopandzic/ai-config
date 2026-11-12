@@ -9,12 +9,12 @@
 #                             missing file:  creates it with that import line.
 #   ~/.codex/AGENTS.md        existing file: keeps its content and appends a short section telling Codex
 #                             to read ~/ai-config/AGENTS.md.
-#                             missing file:  links it to this repo's AGENTS.md.
+#                             missing file:  creates it with that section.
 #   ~/.claude/rules/          links each guide as ai-config-<name>.md, so it never collides with the
-#                             user's own rule files.
+#                             user's own rule files. Without Windows Developer Mode (or an admin shell)
+#                             symlinks are not allowed, so the guide is copied instead and refreshed on every run.
 #   AGENTS.local.md           missing file:  creates it from a template for personal preferences (not in git).
 # Every existing file is copied to <name>.backup-<timestamp> before anything is appended to it.
-# Symlinks need Windows Developer Mode (or an admin shell).
 
 param(
     [string] $HomeDirectory = $env:USERPROFILE
@@ -25,6 +25,7 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = $PSScriptRoot
 $RULES_MARKER = '<!-- ai-config: shared rules -->'
 $GUIDE_LINK_PREFIX = 'ai-config-'
+$GUIDE_COPY_MARKER = '<!-- ai-config: copy of a guide in this repo; install.ps1 overwrites it, edit the repo instead -->'
 
 function Write-Status
 {
@@ -78,16 +79,65 @@ function Add-SharedRulesSection
     Write-Status -Status 'appended' -Message $FilePath
 }
 
-function New-FileLink
+function Get-GuideCopyContent
+{
+    param(
+        [string] $GuidePath
+    )
+
+    return (Get-Content -LiteralPath $GuidePath -Raw) + "`n$GUIDE_COPY_MARKER`n"
+}
+
+function Test-IsGuideCopy
+{
+    param(
+        [System.IO.FileSystemInfo] $Item
+    )
+
+    $isRegularFile = $Item -and -not $Item.LinkType -and -not $Item.PSIsContainer
+
+    return $isRegularFile -and (Get-Content -LiteralPath $Item.FullName -Raw).Contains($GUIDE_COPY_MARKER)
+}
+
+function Update-GuideCopy
+{
+    param(
+        [string] $CopyPath,
+        [string] $GuidePath
+    )
+
+    $expectedContent = Get-GuideCopyContent -GuidePath $GuidePath
+    $copyIsCurrent = (Get-Content -LiteralPath $CopyPath -Raw) -eq $expectedContent
+
+    if ($copyIsCurrent)
+    {
+        Write-Status -Status 'ok' -Message $CopyPath
+        return
+    }
+
+    Set-Content -LiteralPath $CopyPath -Value $expectedContent -NoNewline
+    Write-Status -Status 'updated' -Message "$CopyPath <- $GuidePath"
+}
+
+function New-GuideFile
 {
     param(
         [string] $LinkPath,
-        [string] $TargetPath
+        [string] $GuidePath
     )
 
     New-Item -ItemType Directory -Force -Path (Split-Path $LinkPath) | Out-Null
-    New-Item -ItemType SymbolicLink -Path $LinkPath -Target $TargetPath | Out-Null
-    Write-Status -Status 'linked' -Message "$LinkPath -> $TargetPath"
+
+    try
+    {
+        New-Item -ItemType SymbolicLink -Path $LinkPath -Target $GuidePath | Out-Null
+        Write-Status -Status 'linked' -Message "$LinkPath -> $GuidePath"
+    }
+    catch
+    {
+        Set-Content -LiteralPath $LinkPath -Value (Get-GuideCopyContent -GuidePath $GuidePath) -NoNewline
+        Write-Status -Status 'copied' -Message "$LinkPath <- $GuidePath (symlinks not allowed; turn on Developer Mode to link instead)"
+    }
 }
 
 function Connect-ClaudeInstructions
@@ -127,18 +177,21 @@ function Connect-CodexInstructions
         return
     }
 
-    if (-not $existingItem)
-    {
-        New-FileLink -LinkPath $codexFilePath -TargetPath $repositoryAgentsFilePath
-        return
-    }
-
-    # Codex cannot import files, so the user's own AGENTS.md gets a pointer to the shared rules.
+    # Codex cannot import files, so its AGENTS.md gets a pointer to the shared rules.
     $pointerSection = @'
 ## Shared rules
 
 Read and follow `~/ai-config/AGENTS.md` before writing or reviewing code. It contains the shared coding rules and the index of language and topic guides.
 '@
+
+    if (-not $existingItem)
+    {
+        New-Item -ItemType Directory -Force -Path (Split-Path $codexFilePath) | Out-Null
+        Set-Content -LiteralPath $codexFilePath -Value "$RULES_MARKER`n$pointerSection"
+        Write-Status -Status 'created' -Message $codexFilePath
+        return
+    }
+
     Add-SharedRulesSection -FilePath $codexFilePath -SectionText $pointerSection
 }
 
@@ -157,13 +210,19 @@ function Connect-ClaudeGuides
             continue
         }
 
+        if (Test-IsGuideCopy -Item $existingItem)
+        {
+            Update-GuideCopy -CopyPath $linkPath -GuidePath $guide.FullName
+            continue
+        }
+
         if ($existingItem)
         {
             Write-Status -Status 'skipped' -Message "$linkPath already exists and is not a link to this repo; left untouched"
             continue
         }
 
-        New-FileLink -LinkPath $linkPath -TargetPath $guide.FullName
+        New-GuideFile -LinkPath $linkPath -GuidePath $guide.FullName
     }
 
     Remove-UnprefixedGuideLinks -ClaudeRulesDirectory $claudeRulesDirectory
