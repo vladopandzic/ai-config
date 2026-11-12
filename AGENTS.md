@@ -6,6 +6,10 @@ Paths in this file are relative to the folder that holds it.
 
 - If `AGENTS.local.md` exists, follow it too. It is not in git and holds the machine owner's own way of working (language, tone, tools). Where it conflicts with this file, it wins. If it is already in your context, do not read it again.
 
+## Paths
+
+- We work on Windows. Write paths the Windows way, with backslashes: the full real path when talking to the user (`C:\Users\<name>\.claude\CLAUDE.md`), and `%USERPROFILE%\.claude\CLAUDE.md` in docs meant for others. Never `~/` or forward-slash paths like `C:/Users/...`, except where a tool's syntax requires them.
+
 ## Code readability
 
 - Write code that a reader can understand without guessing what a value, name or method means. Prefer explicit domain names over vague names, abbreviations and clever code.

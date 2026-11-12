@@ -4,9 +4,9 @@ My rules for AI coding agents (Claude Code and Codex), shared between my machine
 
 | File | Read by | Connected through |
 |---|---|---|
-| `AGENTS.md` | Codex directly, Claude through `CLAUDE.md` | `~/.codex/AGENTS.md` |
-| `CLAUDE.md` | Claude only | `~/.claude/CLAUDE.md` |
-| `rules/*.md` | Claude automatically by file path, Codex through the index in `AGENTS.md` | `~/.claude/rules/ai-config-*.md` |
+| `AGENTS.md` | Codex directly, Claude through `CLAUDE.md` | `%USERPROFILE%\.codex\AGENTS.md` |
+| `CLAUDE.md` | Claude only | `%USERPROFILE%\.claude\CLAUDE.md` |
+| `rules/*.md` | Claude automatically by file path, Codex through the index in `AGENTS.md` | `%USERPROFILE%\.claude\rules\ai-config-*.md` |
 | `AGENTS.local.md` (not in git) | Claude through the import in `CLAUDE.md`, Codex through the instruction in `AGENTS.md` | Created by `install.ps1` |
 
 Shared rules go in `AGENTS.md`. `CLAUDE.md` only imports it and holds Claude-only notes.
@@ -26,22 +26,22 @@ It never deletes or replaces a file the user already has. Running it again only 
 
 | Target | If it already exists | If it is missing |
 |---|---|---|
-| `~/.claude/CLAUDE.md` | Keeps the content, appends an import of this repo's `CLAUDE.md` (for example `@C:/Users/me/ai-config/CLAUDE.md`) | Creates it with that import line |
-| `~/.codex/AGENTS.md` | Keeps the content, appends a "Shared rules" section pointing Codex to this repo's `AGENTS.md` (Codex has no imports) | Creates it with that section |
-| `~/.claude/rules/ai-config-<guide>.md` | A copy made by `install.ps1` is refreshed; any other real file with that name is left untouched and reported as skipped | Links it to `rules/<guide>.md`, or copies it when symlinks are not allowed |
+| `%USERPROFILE%\.claude\CLAUDE.md` | Keeps the content, appends an import of this repo's `CLAUDE.md` (for example `@C:/Users/me/ai-config/CLAUDE.md`) | Creates it with that import line |
+| `%USERPROFILE%\.codex\AGENTS.md` | Keeps the content, appends a "Shared rules" section pointing Codex to this repo's `AGENTS.md` (Codex has no imports) | Creates it with that section |
+| `%USERPROFILE%\.claude\rules\ai-config-<guide>.md` | A copy made by `install.ps1` is refreshed; any other real file with that name is left untouched and reported as skipped | Links it to `rules/<guide>.md`, or copies it when symlinks are not allowed |
 | `AGENTS.local.md` in this repo | Left untouched | Creates it from a template |
 
-Before appending to an existing file it saves a copy as `<file>.backup-<timestamp>`. The user's own files in `~/.claude/rules/` keep working next to these guides.
+Before appending to an existing file it saves a copy as `<file>.backup-<timestamp>`. The user's own files in `%USERPROFILE%\.claude\rules\` keep working next to these guides.
 
 ### Where the repo lives
 
-The repo can be cloned into any folder. Inside it every reference is relative (`@AGENTS.md`, `rules/csharp.md`), and `install.ps1` writes the repo's real path into `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`. Keep the path free of spaces; `@` imports may not handle them.
+The repo can be cloned into any folder. Inside it every reference is relative (`@AGENTS.md`, `rules/csharp.md`), and `install.ps1` writes the repo's real path into `%USERPROFILE%\.claude\CLAUDE.md` and `%USERPROFILE%\.codex\AGENTS.md`. Keep the path free of spaces; `@` imports may not handle them.
 
 After moving the repo, run `install.ps1` again from the new place. It reports the old lines as `outdated` and prints the new ones to paste in; it does not rewrite your files.
 
 ### Links or copies
 
-Symlinks on Windows need Developer Mode (Settings → System → For developers) or an admin shell. With them, `~/.claude/rules/` holds links into this repo, so a `git pull` is enough to update the guides.
+Symlinks on Windows need Developer Mode (Settings → System → For developers) or an admin shell. With them, `%USERPROFILE%\.claude\rules\` holds links into this repo, so a `git pull` is enough to update the guides.
 
 Without them, `install.ps1` copies the guides instead. A copy ends with an `ai-config` marker comment so the script can recognise it, and every run overwrites it with the current guide, so after a pull run `update.ps1`. Edit the guides in this repo, not the copies.
 
@@ -78,7 +78,7 @@ The rules work without any of my personal setup. A few things refer to it and ar
 
 | What | Where | What happens without it |
 |---|---|---|
-| `~/.claude/clients.md` (my clients, trackers, commit styles) | `rules/git.md` | Not in this repo. Without it the commit style comes from the repository's git history only. |
+| `%USERPROFILE%\.claude\clients.md` (my clients, trackers, commit styles) | `rules/git.md` | Not in this repo. Without it the commit style comes from the repository's git history only. |
 | GitHub account `vladopandzic` | README "New machine" steps | Clone with your own access, or copy the files. |
 | Windows Developer Mode | `install.ps1` (symlinks) | Guides are copied instead of linked; run `update.ps1` after every pull to refresh them. |
 

@@ -5,16 +5,16 @@
 #   & <repo folder>\install.ps1
 #
 # What it does (safe to run again; it only adds what is missing):
-#   ~/.claude/CLAUDE.md       existing file: keeps its content and appends one import line for this repo's CLAUDE.md.
-#                             missing file:  creates it with that import line.
-#   ~/.codex/AGENTS.md        existing file: keeps its content and appends a short section telling Codex
-#                             to read this repo's AGENTS.md.
-#                             missing file:  creates it with that section.
-#                             Both write this repo's real path; after moving the repo, run install.ps1 again.
-#   ~/.claude/rules/          links each guide as ai-config-<name>.md, so it never collides with the
-#                             user's own rule files. Without Windows Developer Mode (or an admin shell)
-#                             symlinks are not allowed, so the guide is copied instead and refreshed on every run.
-#   AGENTS.local.md           missing file:  creates it from a template for personal preferences (not in git).
+#   %USERPROFILE%\.claude\CLAUDE.md   existing file: keeps its content and appends one import line for this repo's CLAUDE.md.
+#                                     missing file:  creates it with that import line.
+#   %USERPROFILE%\.codex\AGENTS.md    existing file: keeps its content and appends a short section telling Codex
+#                                     to read this repo's AGENTS.md.
+#                                     missing file:  creates it with that section.
+#                                     Both write this repo's real path; after moving the repo, run install.ps1 again.
+#   %USERPROFILE%\.claude\rules\      links each guide as ai-config-<name>.md, so it never collides with the
+#                                     user's own rule files. Without Windows Developer Mode (or an admin shell)
+#                                     symlinks are not allowed, so the guide is copied instead and refreshed on every run.
+#   AGENTS.local.md                   missing file:  creates it from a template for personal preferences (not in git).
 # Every existing file is copied to <name>.backup-<timestamp> before anything is appended to it.
 
 param(
@@ -189,7 +189,7 @@ Read and follow `{0}/AGENTS.md` before writing or reviewing code. It contains th
 '@ -f $repositoryRootForwardSlashes
 
     # Earlier versions linked this file to the repo's AGENTS.md, whose relative paths would then
-    # resolve against ~/.codex. Removing the link deletes no content.
+    # resolve against %USERPROFILE%\.codex. Removing the link deletes no content.
     if (Test-LinkPointsTo -Item $existingItem -TargetPath $repositoryAgentsFilePath)
     {
         Remove-Item -LiteralPath $codexFilePath
