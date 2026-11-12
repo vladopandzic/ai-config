@@ -9,6 +9,12 @@
 - When a name in code directly represents a database table or column, keep the actual name from the database schema (in whatever language it is) instead of a loose translation. State the exact mapping in documentation.
 - Keep production behavior unchanged during naming/documentation refactors unless a behavior change is explicitly part of the task.
 
+## Comments
+
+- Very few comments. The code itself carries the meaning; if it can't, rename or restructure until it can.
+- Never narrate what the code already says.
+- Multi-line "why" explanations belong in the commit message or PR description, never in source files.
+
 ## Language and topic guides
 
 Before writing or reviewing code, read the guide that applies:

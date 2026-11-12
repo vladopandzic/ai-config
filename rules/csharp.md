@@ -58,9 +58,8 @@ When a project already has its own convention (`.editorconfig`, constant casing,
 
 - See `~/ai-config/rules/tests.md`.
 
-## Comments and old code
+## Old code
 
-- Few comments. Instead of explaining unclear code, rename or restructure it; a comment is for *why*, not *what*.
 - Delete replaced code. Do not leave it commented out or renamed to `*Old`; git keeps the history.
 
 ## Method calls and constructors
@@ -69,25 +68,4 @@ When a project already has its own convention (`.editorconfig`, constant casing,
 
 ## XML documentation
 
-- Write an XML summary for every public method that contains business logic or has side effects.
-- Method XML summaries should explain motivation first, behavior and side effects second, and a concrete example third. Separate those paragraphs with blank comment lines and `<para>` elements. Use plain language and explain the actual source, destination and values rather than vague terms.
-
-Example:
-
-```csharp
-/// <summary>
-/// Reservations imported from the partner feed arrive without a currency,
-/// and the invoice generator rejects rows that have none.
-/// 
-/// <para>
-/// Sets <c>Currency</c> on every reservation in the batch to the partner's contract currency.
-/// Reservations that already have a currency are left unchanged.
-/// Nothing is saved; the caller saves the batch.
-/// </para>
-/// 
-/// <para>
-/// Example: the partner's contract currency is EUR and the batch has three reservations,
-/// one already in USD. After the call two are in EUR and one is still in USD.
-/// </para>
-/// </summary>
-```
+- XML `<summary>` (where the project uses them): one short sentence, nothing more.

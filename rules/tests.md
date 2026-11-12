@@ -39,6 +39,7 @@ Read this before writing or reviewing tests. General rules in AGENTS.md and the 
 - Follow the test framework the project already uses. New projects use NUnit, NSubstitute and NUnit's `Assert.That(actual, Is.EqualTo(expected))`. Do not add FluentAssertions to new projects (it needs a commercial license from v8).
 - Test names follow `Method_WhenCondition_ShouldResult`, for example `CreateReport_WhenNightsIsZero_ShouldSkipReservation`.
 - Mark the sections with `// Arrange`, `// Act`, `// Assert`.
+- No narrative/origin comments justifying test-data choices (no "this value reflects production stats" — that goes in the PR description).
 - Shared setup goes in `[SetUp]` / `[OneTimeSetUp]` and seeder classes, not copied between tests.
 
 ## Running tests
