@@ -26,12 +26,18 @@ It never deletes or replaces a file the user already has. Running it again only 
 
 | Target | If it already exists | If it is missing |
 |---|---|---|
-| `~/.claude/CLAUDE.md` | Keeps the content, appends `@~/ai-config/CLAUDE.md` | Creates it with that import line |
-| `~/.codex/AGENTS.md` | Keeps the content, appends a "Shared rules" section pointing Codex to `~/ai-config/AGENTS.md` (Codex has no imports) | Creates it with that section |
+| `~/.claude/CLAUDE.md` | Keeps the content, appends an import of this repo's `CLAUDE.md` (for example `@C:/Users/me/ai-config/CLAUDE.md`) | Creates it with that import line |
+| `~/.codex/AGENTS.md` | Keeps the content, appends a "Shared rules" section pointing Codex to this repo's `AGENTS.md` (Codex has no imports) | Creates it with that section |
 | `~/.claude/rules/ai-config-<guide>.md` | A copy made by `install.ps1` is refreshed; any other real file with that name is left untouched and reported as skipped | Links it to `rules/<guide>.md`, or copies it when symlinks are not allowed |
 | `AGENTS.local.md` in this repo | Left untouched | Creates it from a template |
 
 Before appending to an existing file it saves a copy as `<file>.backup-<timestamp>`. The user's own files in `~/.claude/rules/` keep working next to these guides.
+
+### Where the repo lives
+
+The repo can be cloned into any folder. Inside it every reference is relative (`@AGENTS.md`, `rules/csharp.md`), and `install.ps1` writes the repo's real path into `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`. Keep the path free of spaces; `@` imports may not handle them.
+
+After moving the repo, run `install.ps1` again from the new place. It reports the old lines as `outdated` and prints the new ones to paste in; it does not rewrite your files.
 
 ### Links or copies
 
@@ -50,7 +56,7 @@ It runs `git pull` and then `install.ps1`, so guides added on the other machine 
 ## New machine
 
 1. Optionally turn on Windows Developer Mode (Settings → System → For developers), so guides are linked instead of copied.
-2. Clone into the home folder (the rule files reference `~/ai-config`). The repo is private, so clone with the personal GitHub account:
+2. Clone into any folder; the examples use the home folder. The repo is private, so clone with the personal GitHub account:
 
    ```powershell
    $env:GH_TOKEN = gh auth token --user vladopandzic
@@ -74,7 +80,6 @@ The rules work without any of my personal setup. A few things refer to it and ar
 |---|---|---|
 | `~/.claude/clients.md` (my clients, trackers, commit styles) | `rules/git.md` | Not in this repo. Without it the commit style comes from the repository's git history only. |
 | GitHub account `vladopandzic` | README "New machine" steps | Clone with your own access, or copy the files. |
-| The `~/ai-config` location | `AGENTS.md` index, `CLAUDE.md` import | Clone into `~/ai-config`, or change the paths in those two files. |
 | Windows Developer Mode | `install.ps1` (symlinks) | Guides are copied instead of linked; run `update.ps1` after every pull to refresh them. |
 
 ## Never commit

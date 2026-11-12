@@ -1,15 +1,16 @@
 # Connects the AI rules in this repo to the places where Claude Code and Codex read them,
 # without deleting or replacing anything the user already has.
 #
-# Run once on every machine after cloning into $HOME\ai-config (see README.md):
-#   & $HOME\ai-config\install.ps1
+# Run once on every machine after cloning this repo into any folder (see README.md):
+#   & <repo folder>\install.ps1
 #
 # What it does (safe to run again; it only adds what is missing):
-#   ~/.claude/CLAUDE.md       existing file: keeps its content and appends one import line for these rules.
+#   ~/.claude/CLAUDE.md       existing file: keeps its content and appends one import line for this repo's CLAUDE.md.
 #                             missing file:  creates it with that import line.
 #   ~/.codex/AGENTS.md        existing file: keeps its content and appends a short section telling Codex
-#                             to read ~/ai-config/AGENTS.md.
+#                             to read this repo's AGENTS.md.
 #                             missing file:  creates it with that section.
+#                             Both write this repo's real path; after moving the repo, run install.ps1 again.
 #   ~/.claude/rules/          links each guide as ai-config-<name>.md, so it never collides with the
 #                             user's own rule files. Without Windows Developer Mode (or an admin shell)
 #                             symlinks are not allowed, so the guide is copied instead and refreshed on every run.
@@ -23,6 +24,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = $PSScriptRoot
+$repositoryRootForwardSlashes = $repositoryRoot.Replace('\', '/')
 $RULES_MARKER = '<!-- ai-config: shared rules -->'
 $GUIDE_LINK_PREFIX = 'ai-config-'
 $GUIDE_COPY_MARKER = '<!-- ai-config: copy of a guide in this repo; install.ps1 overwrites it, edit the repo instead -->'
@@ -70,7 +72,15 @@ function Add-SharedRulesSection
 
     if ($sectionAlreadyAdded)
     {
-        Write-Status -Status 'ok' -Message $FilePath
+        $sectionIsCurrent = ($existingContent -replace "`r`n", "`n").Contains(($SectionText -replace "`r`n", "`n"))
+
+        if ($sectionIsCurrent)
+        {
+            Write-Status -Status 'ok' -Message $FilePath
+            return
+        }
+
+        Write-Status -Status 'outdated' -Message "$FilePath has an older ai-config section (repo moved?); replace the lines after $RULES_MARKER by hand with:`n$SectionText"
         return
     }
 
@@ -152,7 +162,7 @@ function Connect-ClaudeInstructions
         return
     }
 
-    $importLine = '@~/ai-config/CLAUDE.md'
+    $importLine = "@$repositoryRootForwardSlashes/CLAUDE.md"
 
     if (-not $existingItem)
     {
@@ -171,18 +181,20 @@ function Connect-CodexInstructions
     $repositoryAgentsFilePath = "$repositoryRoot\AGENTS.md"
     $existingItem = Get-Item -LiteralPath $codexFilePath -Force -ErrorAction SilentlyContinue
 
-    if (Test-LinkPointsTo -Item $existingItem -TargetPath $repositoryAgentsFilePath)
-    {
-        Write-Status -Status 'ok' -Message $codexFilePath
-        return
-    }
-
     # Codex cannot import files, so its AGENTS.md gets a pointer to the shared rules.
     $pointerSection = @'
 ## Shared rules
 
-Read and follow `~/ai-config/AGENTS.md` before writing or reviewing code. It contains the shared coding rules and the index of language and topic guides.
-'@
+Read and follow `{0}/AGENTS.md` before writing or reviewing code. It contains the shared coding rules and the index of language and topic guides.
+'@ -f $repositoryRootForwardSlashes
+
+    # Earlier versions linked this file to the repo's AGENTS.md, whose relative paths would then
+    # resolve against ~/.codex. Removing the link deletes no content.
+    if (Test-LinkPointsTo -Item $existingItem -TargetPath $repositoryAgentsFilePath)
+    {
+        Remove-Item -LiteralPath $codexFilePath
+        $existingItem = $null
+    }
 
     if (-not $existingItem)
     {

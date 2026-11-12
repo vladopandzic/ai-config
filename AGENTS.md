@@ -1,8 +1,10 @@
 # Global user preferences
 
+Paths in this file are relative to the folder that holds it.
+
 ## Personal preferences
 
-- If `~/ai-config/AGENTS.local.md` exists, follow it too. It is not in git and holds the machine owner's own way of working (language, tone, tools). Where it conflicts with this file, it wins. If it is already in your context, do not read it again.
+- If `AGENTS.local.md` exists, follow it too. It is not in git and holds the machine owner's own way of working (language, tone, tools). Where it conflicts with this file, it wins. If it is already in your context, do not read it again.
 
 ## Code readability
 
@@ -22,12 +24,12 @@
 ## Language and topic guides
 
 Before writing or reviewing code, read the guide that applies:
-- C# / .NET → `~/ai-config/rules/csharp.md`
-- Tests (when to write them, what to test, frameworks, running) → `~/ai-config/rules/tests.md`. Read it also when fixing a bug or adding business logic, because those changes need tests.
-- Database (queries, migrations, raw SQL, running anything against a database) → `~/ai-config/rules/database.md`
-- HTTP APIs (controllers, DTOs, errors, status codes) → `~/ai-config/rules/api.md`
-- Git (commits, branches, push, pull requests) → `~/ai-config/rules/git.md`. Read it before any commit, branch, push or PR.
-- Security (secrets, authorization, personal data, uploads, CORS, packages) → `~/ai-config/rules/security.md`. Read it before writing code that handles auth, user data, files or configuration, and before adding a package.
+- C# / .NET → `rules/csharp.md`
+- Tests (when to write them, what to test, frameworks, running) → `rules/tests.md`. Read it also when fixing a bug or adding business logic, because those changes need tests.
+- Database (queries, migrations, raw SQL, running anything against a database) → `rules/database.md`
+- HTTP APIs (controllers, DTOs, errors, status codes) → `rules/api.md`
+- Git (commits, branches, push, pull requests) → `rules/git.md`. Read it before any commit, branch, push or PR.
+- Security (secrets, authorization, personal data, uploads, CORS, packages) → `rules/security.md`. Read it before writing code that handles auth, user data, files or configuration, and before adding a package.
 
 ## Effort and shortcuts
 

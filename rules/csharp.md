@@ -48,7 +48,7 @@ When a project already has its own convention (`.editorconfig`, constant casing,
 
 ## Data access
 
-- See `~/ai-config/rules/database.md`.
+- See the database guide (`database.md` next to this guide).
 
 ## Mapping
 
@@ -56,7 +56,7 @@ When a project already has its own convention (`.editorconfig`, constant casing,
 
 ## Tests
 
-- See `~/ai-config/rules/tests.md`.
+- See the tests guide (`tests.md` next to this guide).
 
 ## Old code
 

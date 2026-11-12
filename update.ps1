@@ -1,7 +1,7 @@
 # Brings this machine up to date with the rules pushed from another machine:
 # pulls the repo, then runs install.ps1 so newly added guides get linked too.
 #
-#   & $HOME\ai-config\update.ps1
+#   & <repo folder>\update.ps1
 
 param(
     [string] $HomeDirectory = $env:USERPROFILE
