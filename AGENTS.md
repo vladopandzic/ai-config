@@ -17,7 +17,22 @@ Paths in this file are relative to the folder that holds it.
 - Give one concrete example (what happens on screen, before → after) instead of an abstract description.
 - Always say where things are: project, file, screen or branch.
 - When the user does not understand, do not repeat the same explanation at greater length; explain it differently and shorter.
+- Keep answers short. When the user asks for one sentence, give one sentence.
 - This applies to answers in the conversation, including follow-up questions about a review. Text written for other people (PR comments, commit messages) follows its own rules.
+
+## Text for other people
+
+- Applies to commit messages, pull requests, PR comments, emails and anything else other people will read.
+- Write like a person, not like an AI: no flattery, pathos, consultant-speak or filler phrases.
+- Never mention Claude, Codex or that the text was AI-generated.
+- When editing a text the user wrote, keep their wording and dialect, and do not add things they did not say.
+
+## Checking your own work
+
+- Before saying something works, check it yourself: run the app or API, open it in the browser and go through the real flow (save, edit, read back), not only the happy path.
+- Do not ask the user to try it when you can check it yourself.
+- After a change, say exactly where it is: repository, branch, file.
+- Check a claim before stating it, not after the user doubts it.
 
 ## Code readability
 
