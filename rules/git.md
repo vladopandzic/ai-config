@@ -22,6 +22,8 @@ Before the first code change in a task, ask the user which mode to use, unless t
 
 ## Branches
 
+- Before starting work, check which branch you are on and say it. New work starts from the up-to-date remote base branch (fetch first), on a branch named after the ticket.
+- Do not mix unrelated changes into the current branch.
 - Follow the project's branch naming, for example `ABC-123-short-description`, `feature/short-description` or module branches.
 - Never let a new feature branch track `origin/master` (or `origin/main`). After `git checkout -b NEW origin/master` (or any similar command), Git sets the new branch to track master — a future bare `git push` or `git pull` would hit master. Immediately run `git branch --unset-upstream <NEW>`, or use `git switch -c NEW --no-track origin/master` from the start. The branch should only get an upstream when it is first pushed with `git push -u origin NEW`, which points it at its own remote.
 
