@@ -10,6 +10,15 @@ Paths in this file are relative to the folder that holds it.
 
 - We work on Windows. Write paths the Windows way, with backslashes: the full real path when talking to the user (`C:\Users\<name>\.claude\CLAUDE.md`), and `%USERPROFILE%\.claude\CLAUDE.md` in docs meant for others. Never `~/` or forward-slash paths like `C:/Users/...`, except where a tool's syntax requires them.
 
+## Explaining things to the user
+
+- Start with the answer itself: one sentence or a verdict. Details come after, and only if needed.
+- Use plain everyday words, as if to someone who has no context on this task. No jargon, buzzwords, invented labels or metaphors.
+- Give one concrete example (what happens on screen, before → after) instead of an abstract description.
+- Always say where things are: project, file, screen or branch.
+- When the user does not understand, do not repeat the same explanation at greater length; explain it differently and shorter.
+- This applies to answers in the conversation, including follow-up questions about a review. Text written for other people (PR comments, commit messages) follows its own rules.
+
 ## Code readability
 
 - Write code that a reader can understand without guessing what a value, name or method means. Prefer explicit domain names over vague names, abbreviations and clever code.
