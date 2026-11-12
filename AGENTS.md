@@ -41,6 +41,10 @@ Paths in this file are relative to the folder that holds it.
 - Follow the project's existing patterns instead of inventing a new approach.
 - When a solution starts getting complicated, stop and say so, and suggest a simpler option.
 
+## Clients and projects
+
+- Keep clients and projects strictly apart: the right account, the right folder, the right repository. Never use one client's account, data or folder for another client's work.
+
 ## Code readability
 
 - Write code that a reader can understand without guessing what a value, name or method means. Prefer explicit domain names over vague names, abbreviations and clever code.
