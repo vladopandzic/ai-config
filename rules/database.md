@@ -74,3 +74,4 @@ The database is usually the bottleneck. For every new or changed query, think ab
 
 - Before applying a migration or running any SQL against any database, show what will run and against which database, and wait for the user's confirmation, every time.
 - Integration tests that create their own Testcontainers database are exempt.
+- When giving the user SQL to run, give it as a ```sql block starting with USE [database], ready to paste into SSMS. Never wrap it in a sqlcmd command.
