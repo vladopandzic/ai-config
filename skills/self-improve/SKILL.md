@@ -86,11 +86,7 @@ A complaint like "I don't understand" says nothing on its own; the reply before 
 
 ## Proposals
 
-Go one at a time. For each proposal show:
-
-- **What the user said**: the count and one or two short quotes.
-- **The rule**: the exact text, ready to paste, in the language of the target file.
-- **Where**: the target file and section.
+Go one at a time. For each proposal, say in plain sentences what the user said (the count and one or two short quotes), give the rule as a block ready to paste, in the language of the target file, and say which file and section it goes into. When several proposals go into the same section, show that whole section as it would look after all of them, as one proposal.
 
 Then let the user choose: write it, change it, or skip it. Do not show the next proposal until the user decides on this one.
 

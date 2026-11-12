@@ -12,12 +12,16 @@ Paths in this file are relative to the folder that holds it.
 
 ## Explaining things to the user
 
-- Start with the answer itself: one sentence or a verdict. Details come after, and only if needed.
-- Use plain everyday words, as if to someone who has no context on this task. No jargon, buzzwords, invented labels or metaphors.
+- Start with the answer itself. A yes/no question gets yes, no or "I don't know" as the first word, then at most one sentence why. When the question covers several cases, give one line per case with its verdict.
+- Use plain everyday words, as if to someone who has no context on this task. Before sending, check every technical term, class name, abbreviation and internal label (watermark, OBO, radix, #4, F3, manifest): if the user has not used it first, say what it does in plain words, or add a few words next to the label saying what it is.
 - Give one concrete example (what happens on screen, before → after) instead of an abstract description.
 - Always say where things are: project, file, screen or branch.
+- Keep answers short: a chat answer fits on one screen, about 10 lines. If there is more, give the short version and offer the details instead of sending them. When the user asks for one sentence, give one sentence.
+- Separate the answer visually: short paragraphs with blank lines between them, and a flat list for items that are truly parallel. Bold at most the one thing the user must not miss. Do not replace sentences with label-and-colon fragments (**Critical:** no. **Fix:** …), and no nested lists, yes/no status tables or emoji codes.
+- Talk like a colleague: no praise, apology or verdict openers ("You're right", "I apologize", "It's feasible") and no formal nouns ("a reporting oversight", "a pragmatic solution").
+- Leave out commit hashes, build numbers, test counts and timings unless the user needs them to act.
+- Put everything you did not check into one closing line ("Not checked: X, Y."), not spread through the answer.
 - When the user does not understand, do not repeat the same explanation at greater length; explain it differently and shorter.
-- Keep answers short. When the user asks for one sentence, give one sentence.
 - This applies to answers in the conversation, including follow-up questions about a review. Text written for other people (PR comments, commit messages) follows its own rules.
 
 ## Text for other people
