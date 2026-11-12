@@ -1,6 +1,6 @@
 ---
 name: self-improve
-description: Turns the user's repeated corrections into rules in the right file (shared AGENTS.md, personal AGENTS.local.md, a topic guide, a project CLAUDE.md or a skill), one proposal at a time with the user's approval. Use when the user runs /self-improve, or asks to review their corrections, learn from past sessions or improve the rules. "/self-improve" looks at this session, "/self-improve history [days]" at all projects.
+description: Turns the user's repeated corrections into rules in the right file (shared AGENTS.md, personal AGENTS.local.md, a topic guide, a project CLAUDE.md or a skill), one proposal at a time with the user's approval. Use when the user runs /self-improve, or asks to review their corrections, learn from past sessions or improve the rules. "/self-improve" looks at this session, "/self-improve history [days]" at all projects, "/self-improve voice [days]" at how Claude writes (unclear, too long, sounds like AI).
 ---
 
 # Self-improve
@@ -11,6 +11,7 @@ A rule is something the user repeats; a one-off "no, do it like this" is not. Lo
 
 - `/self-improve`: the current conversation.
 - `/self-improve history [days]`: the user's messages from all projects, default 30 days.
+- `/self-improve voice [days]`: the user's complaints about how Claude writes, each with the reply it reacted to, default 30 days.
 
 ## Find the files
 
@@ -62,6 +63,26 @@ Never write to `%USERPROFILE%\.claude\CLAUDE.md` unless the user asks for it.
 3. Keep themes that recur at least twice, plus any rejected tool call with a comment and any single complaint that is clearly strong. Sort by count.
 4. Drop what the decisions log says the user skipped, unless it recurred at least three times since; then propose it again and say it was skipped before.
 5. Write the list as a document in the user's language, sorted by count, open it the way the user's rules say documents should be shown, and continue with "Proposals".
+
+## Voice mode
+
+A complaint like "I don't understand" says nothing on its own; the reply before it shows what went wrong.
+
+1. Run the extract script with `--voice`:
+
+   ```powershell
+   python "<repo>\skills\self-improve\extract.py" --days <days> --voice --out "$env:TEMP\self-improve-voice.txt"
+   ```
+
+   Each entry is the user's complaint and the reply it reacted to. Drop entries where the complaint is about the subject, not the wording.
+2. Also read `%USERPROFILE%\.claude\skills\review-voice.md`, which already describes how the user writes review comments.
+3. If the file is under about 40 KB, read it yourself; otherwise give it to one subagent with the same task as the steps below. Find what recurs in the criticized replies, as concrete things you can point at: phrases, structure (bold labels, nested lists, dashes), length, unexplained jargon, the answer buried under details. For each pattern give the count, one short quote and a rewrite in the user's own style.
+4. Sort the patterns by where they belong:
+   - answers to the user → `<repo>\AGENTS.md`, "Explaining things to the user",
+   - texts other people read (commits, PR descriptions) → `<repo>\AGENTS.md`, "Text for other people",
+   - review comments → `review-voice.md`, its Do / Don't section.
+5. A pattern that is a phrase becomes one line in the target section: the phrase to avoid and what to say instead.
+6. Write the list as in history mode step 5 and continue with "Proposals".
 
 ## Proposals
 

@@ -31,6 +31,7 @@ Turns your repeated corrections into rules, in the right file, one proposal at a
 
 - `/self-improve`: looks at the current session. Run it after a bigger piece of work.
 - `/self-improve history 30`: looks at your messages from all projects in the last 30 days. Run it about once a month.
+- `/self-improve voice 30`: looks at your complaints about how Claude writes (unclear, too long, sounds like AI), each with the reply you reacted to, and proposes wording rules.
 
 It needs Python for the history scan. Your decisions (written, skipped) go to `self-improve.local.md`, which git ignores, so a skipped rule is not proposed again unless it keeps coming back.
 
