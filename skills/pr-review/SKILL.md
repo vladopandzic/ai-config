@@ -176,6 +176,9 @@ Akcije koje ponudiš: **`/pr-review objavi <repo> <n> [brojevi]`**, `uredi N` (k
 Isti sadržaj spremi u `<reviewsDir>/<repo>-<pr>.objasnjenje.md`. Na vrh napiši `Reviewano @ <head-sha>`, da iduća runda zna od
 čega računa deltu.
 
+Nalaze spremi i strojno u `<reviewsDir>/<repo>-<pr>.findings.json`, s punim head sha koji je reviewan, u formatu iz
+`../pr-walkthrough/SKILL.md` (sekcija "Review findings format"), da ih `/pr-walkthrough` pokaže uz kod.
+
 **Nakon izvještaja uvijek pokaži kako komentari izgledaju:** pun draft svakog komentara, s lokacijom (`file:line` u NOVOM fajlu,
 "općenit" ili "odgovor u niti"), pa vizualni preview po `references/vizualni-preview.md`.
 
