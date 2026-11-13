@@ -1,0 +1,6 @@
+#!/bin/sh
+script="$(git rev-parse --show-toplevel)/check-no-clients.ps1"
+if command -v pwsh >/dev/null 2>&1; then
+    exec pwsh -NoProfile -File "$script"
+fi
+exec powershell -NoProfile -ExecutionPolicy Bypass -File "$script"

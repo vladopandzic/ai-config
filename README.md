@@ -35,6 +35,14 @@ Turns your repeated corrections into rules, in the right file, one proposal at a
 
 It needs Python for the history scan. Your decisions (written, skipped) go to `self-improve.local.md`, which git ignores, so a skipped rule is not proposed again unless it keeps coming back.
 
+## Keeping clients out of the repo
+
+This repo is meant to be shared, so a pre-commit hook runs `check-no-clients.ps1` on the lines you are about to commit and stops the commit if it finds an e-mail address, a personal Windows path, a token, or anything from your own denylist.
+
+- Your denylist is `%USERPROFILE%\.claude\denylist.txt`: client names, colleagues, repo names, ticket keys, accounts, one case-insensitive regex per line. It never goes into git.
+- `install.ps1` turns the hook on. Without a denylist only the general patterns run.
+- `& .\check-no-clients.ps1 -All` checks every tracked file, not only what is staged.
+
 ## What install.ps1 does
 
 It never deletes or replaces a file the user already has. Running it again only adds what is missing.

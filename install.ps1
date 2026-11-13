@@ -17,6 +17,8 @@
 #   %USERPROFILE%\.claude\skills\     links each skill folder (for example self-improve) with a junction,
 #                                     which needs no Developer Mode. A folder with the same name is left untouched.
 #   AGENTS.local.md                   missing file:  creates it from a template for personal preferences (not in git).
+#   git hooks of this repo            points core.hooksPath at hooks\, so check-no-clients.ps1 runs before every commit.
+#                                     A different hooks path set by the user is left untouched.
 # Every existing file is copied to <name>.backup-<timestamp> before anything is appended to it.
 
 param(
@@ -309,7 +311,28 @@ function Connect-ClaudeSkills
     }
 }
 
+function Connect-GitHooks
+{
+    $currentHooksPath = git -C $repositoryRoot config --local core.hooksPath
+
+    if ($currentHooksPath -eq 'hooks')
+    {
+        Write-Status -Status 'ok' -Message 'git hooks'
+        return
+    }
+
+    if ($currentHooksPath)
+    {
+        Write-Status -Status 'skipped' -Message "core.hooksPath is already '$currentHooksPath'; left untouched, so check-no-clients.ps1 does not run before commits"
+        return
+    }
+
+    git -C $repositoryRoot config --local core.hooksPath hooks
+    Write-Status -Status 'linked' -Message 'git hooks -> hooks\ (check-no-clients.ps1 runs before every commit)'
+}
+
 New-PersonalPreferencesFile
+Connect-GitHooks
 Connect-ClaudeInstructions
 Connect-CodexInstructions
 Connect-ClaudeGuides
