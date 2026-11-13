@@ -16,8 +16,8 @@ The tools are in `tools\` next to this file (`<tools>` below). Run Python with `
 
 ## Output
 
-- The page: `<reviewsDir>\<repo>-pr<n>.html`, one file that works with a double click and can be sent to a colleague.
-- Its data: `<reviewsDir>\<repo>-pr<n>\` (`<data>` below): the hand-written parts and the JSON the tools make, so the page can be rebuilt and refreshed.
+- The page: `<reviewsDir>\<repo>-<n>.walkthrough.html`, one file that works with a double click and can be sent to a colleague.
+- Its data: `<reviewsDir>\<repo>-<n>.walkthrough\` (`<data>` below): the hand-written parts and the JSON the tools make, so the page can be rebuilt and refreshed.
 - Never inside a repo. `reviewsDir` comes from the harvest.
 
 ## 1. Gather
@@ -84,7 +84,7 @@ python -I $T\pr_sources.py $R <base> <head> $D\code-panels.json $D\sources.json
 python -I $T\pr_status.py $R <base> <head> $D\harvest.json $D\prstatus.json
 python -I $T\pr_discussion.py $D\harvest.json $D\discussion.json
 python -I $T\pr_db.py $R <base> <head> $D\db.json --no-ai
-python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-pr<n>.html CODE=$D\code-panels.json SOURCES=$D\sources.json OUTLINE=$D\outline.json PRINFO=$D\prstatus.json TOPICS=$D\topics.json HUMAN=$D\topics-human.json LANES=$D\lanes.json META=$D\meta.json DISCUSSION=$D\discussion.json DB=$D\db.json [ZOOM=$D\zoom.json] [DELTA=$D\delta.json] [FINDINGS=$D\findings.json]
+python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthrough.html CODE=$D\code-panels.json SOURCES=$D\sources.json OUTLINE=$D\outline.json PRINFO=$D\prstatus.json TOPICS=$D\topics.json HUMAN=$D\topics-human.json LANES=$D\lanes.json META=$D\meta.json DISCUSSION=$D\discussion.json DB=$D\db.json [ZOOM=$D\zoom.json] [DELTA=$D\delta.json] [FINDINGS=$D\findings.json]
 ```
 
 - `pr_topics.py` finds from the diff what the PR touches (migrations, packages, settings, background jobs, external services, permissions, alerts, CI, screens, tests); its rules are for .NET. `pr_packages.py` adds where each changed NuGet package is used and its health from the public NuGet API (only package ids and versions are sent).
