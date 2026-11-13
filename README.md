@@ -35,6 +35,12 @@ Turns your repeated corrections into rules, in the right file, one proposal at a
 
 It needs Python for the history scan. Your decisions (written, skipped) go to `self-improve.local.md`, which git ignores, so a skipped rule is not proposed again unless it keeps coming back.
 
+### /pr-review
+
+Reviews a pull request on GitHub or Bitbucket from nine angles (bugs, architecture, tests, security, performance, conventions, ticket, unresolved comments, design questions), proves bugs with a test it actually runs, and drafts the comments. Nothing is posted until you say so.
+
+Your repos go in `skills\pr-review\config.local.ps1` and notes about one repo in `skills\pr-review\repos\<repo>.md`; git ignores both. Setup is in `skills\pr-review\README.md`.
+
 ## Keeping clients out of the repo
 
 This repo is meant to be shared, so a pre-commit hook runs `check-no-clients.ps1` on the lines you are about to commit and stops the commit if it finds an e-mail address, a personal Windows path, a token, or anything from your own denylist.

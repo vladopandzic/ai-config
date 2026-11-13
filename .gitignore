@@ -1,3 +1,4 @@
 *.local.md
 *.local.ps1
+skills/pr-review/repos/
 __pycache__/
