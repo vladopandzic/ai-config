@@ -78,6 +78,8 @@ It never deletes or replaces a file the user already has. Running it again only 
 
 Before appending to an existing file it saves a copy as `<file>.backup-<timestamp>`. The user's own files in `%USERPROFILE%\.claude\rules\` keep working next to these guides.
 
+At the end it runs `check-setup.ps1`, which changes nothing and lists what the machine still needs: git, `gh` login, Python, the .NET SDK, Docker, the pr-review config with a local clone and credentials for each repo, and the denylist. Run it again on its own after fixing something.
+
 ### Where the repo lives
 
 The repo can be cloned into any folder. Inside it every reference is relative (`@AGENTS.md`, `rules/csharp.md`), and `install.ps1` writes the repo's real path into `%USERPROFILE%\.claude\CLAUDE.md` and `%USERPROFILE%\.codex\AGENTS.md`. Keep the path free of spaces; `@` imports may not handle them.

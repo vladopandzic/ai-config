@@ -19,6 +19,7 @@
 #   AGENTS.local.md                   missing file:  creates it from a template for personal preferences (not in git).
 #   git hooks of this repo            points core.hooksPath at hooks\, so check-no-clients.ps1 runs before every commit.
 #                                     A different hooks path set by the user is left untouched.
+#   check-setup.ps1                   runs at the end and lists what is still missing (tools, logins, pr-review config).
 # Every existing file is copied to <name>.backup-<timestamp> before anything is appended to it.
 
 param(
@@ -337,3 +338,6 @@ Connect-ClaudeInstructions
 Connect-CodexInstructions
 Connect-ClaudeGuides
 Connect-ClaudeSkills
+
+Write-Host "`nWhat this machine still needs:"
+& "$repositoryRoot\check-setup.ps1"
