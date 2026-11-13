@@ -7,6 +7,10 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = $PSScriptRoot
 $PR_REVIEW_CONFIG_PATH = "$repositoryRoot\skills\pr-review\config.local.ps1"
 $DENYLIST_PATH = "$env:USERPROFILE\.claude\denylist.txt"
+$BITBUCKET_API = 'https://api.bitbucket.org/2.0'
+$HTTP_TIMEOUT_SECONDS = 15
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 function Write-Status
 {
@@ -97,6 +101,53 @@ function Test-Tools
     else { Write-Status -Status 'note' -Message 'docker is not running: prepare-pr skips integration tests that need it' }
 }
 
+function Get-BasicAuthorization
+{
+    param(
+        [string] $User,
+        [string] $Secret
+    )
+
+    return 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("${User}:$Secret"))
+}
+
+function Get-HttpStatus
+{
+    param(
+        [string] $Uri,
+        [string] $Authorization
+    )
+
+    try
+    {
+        Invoke-RestMethod -Uri $Uri -Headers @{ Authorization = $Authorization } -TimeoutSec $HTTP_TIMEOUT_SECONDS | Out-Null
+        return 200
+    }
+    catch
+    {
+        $response = $_.Exception.Response
+        if ($response) { return [int]$response.StatusCode }
+        return 0
+    }
+}
+
+function Get-AccessProblem
+{
+    param(
+        [int] $Status
+    )
+
+    switch ($Status)
+    {
+        200 { return $null }
+        0 { return 'the server cannot be reached (VPN or network?)' }
+        401 { return 'the login is refused (401): wrong e-mail or token, or the token expired' }
+        403 { return 'the token is missing a permission (403)' }
+        404 { return 'the repo is not found or the token cannot see it (404)' }
+        default { return "the server answered $Status" }
+    }
+}
+
 function Test-GithubRepository
 {
     param(
@@ -107,13 +158,19 @@ function Test-GithubRepository
     $hasOwnAccount = [bool]$Repository.ghAccount
     $accountWorks = (-not $hasOwnAccount) -or (Test-CommandSucceeds { gh auth token --user $Repository.ghAccount })
 
-    if ($accountWorks)
+    if (-not $accountWorks)
     {
-        Write-Status -Status 'ok' -Message "pr-review $Name (GitHub)"
+        Write-Status -Status 'missing' -Message "pr-review ${Name}: gh account '$($Repository.ghAccount)' is not logged in (gh auth login)"
         return
     }
 
-    Write-Status -Status 'missing' -Message "pr-review ${Name}: gh account '$($Repository.ghAccount)' is not logged in (gh auth login)"
+    $originalToken = $env:GH_TOKEN
+    if ($hasOwnAccount) { $env:GH_TOKEN = gh auth token --user $Repository.ghAccount }
+    $repoVisible = Test-CommandSucceeds { gh api "repos/$($Repository.owner)/$Name" }
+    $env:GH_TOKEN = $originalToken
+
+    if ($repoVisible) { Write-Status -Status 'ok' -Message "pr-review $Name (GitHub)" }
+    else { Write-Status -Status 'missing' -Message "pr-review ${Name}: the gh account cannot see $($Repository.owner)/$Name" }
 }
 
 function Test-BitbucketRepository
@@ -129,6 +186,23 @@ function Test-BitbucketRepository
     if ($missingVariables)
     {
         Write-Status -Status 'missing' -Message "pr-review ${Name}: environment variables $($missingVariables -join ', ') (see skills\pr-review\README.md)"
+        return
+    }
+
+    $email = Get-UserEnvironmentValue "${prefix}_EMAIL"
+
+    if (-not $email.Contains('@'))
+    {
+        Write-Status -Status 'missing' -Message "pr-review ${Name}: ${prefix}_EMAIL must be the e-mail of your Atlassian account, not a user name"
+        return
+    }
+
+    $authorization = Get-BasicAuthorization -User $email -Secret (Get-UserEnvironmentValue "${prefix}_TOKEN")
+    $problem = Get-AccessProblem (Get-HttpStatus -Uri "$BITBUCKET_API/repositories/$($Repository.workspace)/$Name" -Authorization $authorization)
+
+    if ($problem)
+    {
+        Write-Status -Status 'missing' -Message "pr-review ${Name}: $problem"
         return
     }
 
@@ -161,6 +235,16 @@ function Test-AzureRepository
         return
     }
 
+    $authorization = Get-BasicAuthorization -User '' -Secret (Get-UserEnvironmentValue $tokenVariable)
+    $repositoryApi = '{0}/{1}/_apis/git/repositories/{2}?api-version=6.0' -f $Repository.azureUrl, [uri]::EscapeDataString($Repository.project), [uri]::EscapeDataString($Name)
+    $problem = Get-AccessProblem (Get-HttpStatus -Uri $repositoryApi -Authorization $authorization)
+
+    if ($problem)
+    {
+        Write-Status -Status 'missing' -Message "pr-review ${Name}: $problem"
+        return
+    }
+
     Write-Status -Status 'ok' -Message "pr-review $Name (Azure DevOps)"
 }
 
@@ -190,6 +274,13 @@ function Test-PrReviewSetup
             'bitbucket' { Test-BitbucketRepository -Name $name -Repository $repository }
             'azure' { Test-AzureRepository -Name $name -Repository $repository }
             default { Test-GithubRepository -Name $name -Repository $repository }
+        }
+
+        $isJavaScriptProject = Test-Path -LiteralPath (Join-Path $repository.localPath 'package.json')
+
+        if ($isJavaScriptProject -and -not (Test-Command 'node'))
+        {
+            Write-Status -Status 'note' -Message "pr-review ${name}: a JavaScript project, but Node.js is missing, so its build and tests cannot run"
         }
     }
 }
