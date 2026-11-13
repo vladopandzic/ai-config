@@ -41,6 +41,10 @@ Reviews a pull request on GitHub or Bitbucket from nine angles (bugs, architectu
 
 Your repos go in `skills\pr-review\config.local.ps1` and notes about one repo in `skills\pr-review\repos\<repo>.md`; git ignores both. `/pr-review postavi` writes the config for you from the git repos in your projects folder. Setup is in `skills\pr-review\README.md`.
 
+### /pr-walkthrough
+
+Walks you through someone else's PR before you review it: what problem it solves, before and after in plain words, a tour of the three to five places in the code that matter, the domain terms, and where to look carefully. It reads only and uses the pr-review setup. Terms it explains can be kept in the repo notes, so explanations get better with every PR.
+
 ### /ef-migration
 
 Adds, checks, removes and applies EF Core migrations in any .NET repo. It finds the context, project and migrations folder from the repo itself (documented `dotnet ef` commands first), reviews the new migration for data loss, warns when the base branch has a migration you do not, and touches only a local database, after you confirm.
