@@ -16,6 +16,7 @@
 $SKILL_ROOT = Split-Path $PSScriptRoot -Parent
 $LOCAL_CONFIG_PATH = Join-Path $SKILL_ROOT 'config.local.ps1'
 $BITBUCKET_API = 'https://api.bitbucket.org/2.0'
+$BITBUCKET_GIT_USER = 'x-bitbucket-api-token-auth'
 $DEFAULT_TICKET_REGEX = '\b[A-Z][A-Z0-9]+-\d+\b'
 $AZURE_API_VERSION = '6.0'
 $AZURE_POLICY_API_VERSION = '6.0-preview.1'
@@ -136,10 +137,15 @@ function Get-AzureHeaders {
 
 function Get-GitAuthArguments {
   param($RepoConfig)
-  if ($RepoConfig.host -ne 'azure') { return @() }
-  $headers = Get-AzureHeaders $RepoConfig.tokenVariable
-  if (-not $headers) { return @() }
-  return @('-c', "http.extraHeader=Authorization: $($headers.Authorization)")
+  $authorization = switch ($RepoConfig.host) {
+    'azure' { (Get-AzureHeaders $RepoConfig.tokenVariable).Authorization }
+    'bitbucket' {
+      $token = Get-EnvironmentValue "$(Get-BitbucketVariablePrefix $RepoConfig.workspace)_TOKEN"
+      if ($token) { 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("${BITBUCKET_GIT_USER}:$token")) }
+    }
+  }
+  if (-not $authorization) { return @() }
+  return @('-c', "http.extraHeader=Authorization: $authorization")
 }
 
 function Get-AzureRepositoryApi {

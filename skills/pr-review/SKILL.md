@@ -70,8 +70,8 @@ korisniku što piše i stani. `localPath` je lokalni klon, `reviewsDir` folder z
 - **Fetchaj PR granu lokalno, bez checkouta** (glavni checkout ostaje na svojoj grani):
   `git -C <localPath> fetch origin <dest> <fetchSpec>`. **Ne** `gh pr checkout` ni `git checkout`, oni prebace granu glavnog
   checkouta. Perspektive čitaju preko `git show pr-<n>:<path>`, a build i mutacije idu u export ili worktree u scratchpadu
-  (vidi `references/verify-gotchas.md`). Za Azure DevOps harvest granu već fetcha s tokenom iz `tokenVariable`, pa taj
-  fetch preskoči: ručni fetch na Azure DevOps Serveru često traži Windows prijavu koju računalo kolegice nema.
+  (vidi `references/verify-gotchas.md`). Harvest tu granu već fetcha, s tokenom za Bitbucket i Azure DevOps, pa ručni
+  fetch treba samo ako `pr-<n>` ne postoji: bez tokena fetch preko HTTPS-a traži prijavu koju računalo često nema.
 - **Komentari:** `comments[]` ima opće i inline komentare (inline s `path`, `line`, `id`, `replyTo`; na GitHubu `outdated`
   znači da je `line` iz starije verzije fajla, na Azure DevOpsu da se fajl mijenjao nakon komentara; tamo je `id` oblika
   `<nit>-<komentar>`); trebaju ih dedup (3),

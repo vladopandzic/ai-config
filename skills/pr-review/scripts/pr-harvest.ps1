@@ -335,6 +335,9 @@ $diff = if ($cfg.host -eq 'azure') { Get-AzureLocalDiff $cfg $Pr $pull.pullReque
 $diff | Out-File $diffPath -Encoding utf8
 $key = $null; if ("$($pull.title) $($pull.source)" -match $cfg.ticketRegex) { $key = $Matches[0] }
 
+$authArguments = Get-GitAuthArguments $cfg
+git @authArguments -C $cfg.localPath fetch origin $pull.fetchSpec $pull.dest --quiet 2>$null | Out-Null
+
 $baseSha = Get-NotesHead $Repo $Pr; $baseSource = 'notes'
 if (-not $baseSha -and $pull.reviewedSha) { $baseSha = $pull.reviewedSha; $baseSource = 'github-review' }
 $previousReview = New-PreviousReview $pull.myLastAt $baseSha $baseSource $pull.headSha $pull.fetchSpec $pull.dest $pull.myActivityIds
