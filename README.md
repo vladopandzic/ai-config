@@ -41,6 +41,14 @@ Reviews a pull request on GitHub or Bitbucket from nine angles (bugs, architectu
 
 Your repos go in `skills\pr-review\config.local.ps1` and notes about one repo in `skills\pr-review\repos\<repo>.md`; git ignores both. Setup is in `skills\pr-review\README.md`.
 
+### /ef-migration
+
+Adds, checks, removes and applies EF Core migrations in any .NET repo. It finds the context, project and migrations folder from the repo itself (documented `dotnet ef` commands first), reviews the new migration for data loss, warns when the base branch has a migration you do not, and touches only a local database, after you confirm.
+
+- `/ef-migration add <name or what changed>`
+- `/ef-migration check`: before a PR or after merging the base branch.
+- `/ef-migration remove`, `/ef-migration update [migration]`, `/ef-migration script`
+
 ## Keeping clients out of the repo
 
 This repo is meant to be shared, so a pre-commit hook runs `check-no-clients.ps1` on the lines you are about to commit and stops the commit if it finds an e-mail address, a personal Windows path, a token, or anything from your own denylist.
