@@ -2,7 +2,8 @@
 
 An inline comment starts a thread at its file and line; replies (replyTo, followed up to the first comment) join it.
 Comments that are not inline, and their replies, are general comments on the PR. GitHub marks a comment outdated when its
-line is from an older version of the file. Neither host's harvest says whether a thread is resolved, so none is.
+line is from an older version of the file; Azure DevOps when the file changed after the comment. No host's harvest says
+whether a thread is resolved, so none is. Azure DevOps comment ids are <threadId>-<commentId>.
 
 Output (JSON): {"fetchedAt", "threads": [{id, path, line, side, outdated, resolved, url, comments: [{author, at, body}]}],
                 "general": [{author, at, body, url, kind}]}
@@ -19,7 +20,7 @@ POWERSHELL_DATE_FORMAT = '%m/%d/%Y %H:%M:%S'
 harvest_path, out = sys.argv[1:3]
 h = json.load(open(harvest_path, encoding='utf-8-sig'))
 pr_url = h.get('url') or ''
-is_github = h.get('host') == 'github'
+host = h.get('host')
 
 
 def iso(value):
@@ -39,8 +40,10 @@ def iso(value):
 def comment_url(c):
     if not c.get('id'):
         return pr_url
-    if is_github:
+    if host == 'github':
         return f"{pr_url}#discussion_r{c['id']}" if c.get('inline') else f"{pr_url}#issuecomment-{c['id']}"
+    if host == 'azure':
+        return f"{pr_url}?discussionId={str(c['id']).split('-')[0]}"
     return f"{pr_url}#comment-{c['id']}"
 
 

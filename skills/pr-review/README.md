@@ -1,6 +1,6 @@
 # pr-review
 
-Claude Code skill za review PR-ova na GitHubu i Bitbucketu: 9 nezavisnih perspektiva, jedan rangiran izvještaj, gotovi
+Claude Code skill za review PR-ova na GitHubu, Bitbucketu i Azure DevOpsu (cloud i Server): 9 nezavisnih perspektiva, jedan rangiran izvještaj, gotovi
 draft komentari. Bugovi se dokazuju pokrenutim testom. Ništa ne ide na PR bez tvoje potvrde.
 
 ## Što treba
@@ -8,6 +8,7 @@ draft komentari. Bugovi se dokazuju pokrenutim testom. Ništa ne ide na PR bez t
 - lokalni klon svakog repoa koji reviewaš
 - GitHub: `gh` CLI, ulogiran s računom koji vidi repo
 - Bitbucket: API token sa scopeovima, u environment varijablama (vidi ispod)
+- Azure DevOps: personal access token (PAT) u environment varijabli koju imenuje `tokenVariable` (vidi ispod)
 - Docker, za testove u CI okolini (UTC, invariant kultura)
 - Jira connector, samo za `ticket-fit`; bez njega taj lens javi da nema pristup tiketu
 
@@ -26,7 +27,14 @@ draft komentari. Bugovi se dokazuju pokrenutim testom. Ništa ne ide na PR bez t
    [Environment]::SetEnvironmentVariable('BITBUCKET_<WORKSPACE>_TOKEN_WRITE', '<token>', 'User')  # write:pullrequest:bitbucket, samo za objavu
    ```
    Token napravi u Atlassian postavkama računa (API tokens, "Create API token with scopes"). Upiši ga u svom terminalu, ne u chat.
-6. Provjeri:
+6. Za Azure DevOps napravi PAT (User settings, Personal access tokens) sa scopeom Code (Read), ili Code (Read & write) ako
+   ćeš objavljivati komentare, i spremi ga u varijablu čije ime upišeš kao `tokenVariable`:
+   ```powershell
+   [Environment]::SetEnvironmentVariable('AZURE_DEVOPS_EXAMPLE_PAT', '<token>', 'User')
+   ```
+   Isto vrijedi za cloud (`https://dev.azure.com/<org>`) i za Azure DevOps Server (`https://<server>/<kolekcija>`). Diff PR-a
+   skripta računa lokalno, iz grana koje fetcha u klon.
+7. Provjeri:
    ```
    pwsh -NoProfile -File "$HOME/.claude/skills/pr-review/scripts/pr-harvest.ps1" -List -Pretty
    ```

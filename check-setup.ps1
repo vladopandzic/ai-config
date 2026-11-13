@@ -137,6 +137,30 @@ function Test-BitbucketRepository
     }
 }
 
+function Test-AzureRepository
+{
+    param(
+        [string] $Name,
+        [hashtable] $Repository
+    )
+
+    $tokenVariable = $Repository.tokenVariable
+
+    if (-not $tokenVariable)
+    {
+        Write-Status -Status 'missing' -Message "pr-review ${Name}: no tokenVariable in config.local.ps1 (the environment variable that holds the Azure DevOps PAT)"
+        return
+    }
+
+    if (-not (Get-UserEnvironmentValue $tokenVariable))
+    {
+        Write-Status -Status 'missing' -Message "pr-review ${Name}: environment variable $tokenVariable is not set (see skills\pr-review\README.md)"
+        return
+    }
+
+    Write-Status -Status 'ok' -Message "pr-review $Name (Azure DevOps)"
+}
+
 function Test-PrReviewSetup
 {
     if (-not (Test-Path -LiteralPath $PR_REVIEW_CONFIG_PATH))
@@ -158,8 +182,12 @@ function Test-PrReviewSetup
             continue
         }
 
-        if ($repository.host -eq 'bitbucket') { Test-BitbucketRepository -Name $name -Repository $repository }
-        else { Test-GithubRepository -Name $name -Repository $repository }
+        switch ($repository.host)
+        {
+            'bitbucket' { Test-BitbucketRepository -Name $name -Repository $repository }
+            'azure' { Test-AzureRepository -Name $name -Repository $repository }
+            default { Test-GithubRepository -Name $name -Repository $repository }
+        }
     }
 }
 

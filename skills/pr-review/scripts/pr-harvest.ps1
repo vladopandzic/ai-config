@@ -1,5 +1,5 @@
 <#
-  pr-harvest.ps1 — one-shot PR context harvester for /pr-review, GitHub (gh CLI) and Bitbucket (API token).
+  pr-harvest.ps1 — one-shot PR context harvester for /pr-review, GitHub (gh CLI), Bitbucket (API token) and Azure DevOps (PAT).
   Returns a single JSON manifest; saves the (possibly huge) diff to a file and returns its path.
   Repos, hosts and local clones come from config.local.ps1 (see config.example.ps1).
 
@@ -33,6 +33,9 @@ if ($configError) { Out-Json @{ error = $configError }; exit 0 }
 
 function Get-PrUrl($repoConfig, $id) {
   if ($repoConfig.host -eq 'github') { return "https://github.com/$($repoConfig.owner)/$($repoConfig.name)/pull/$id" }
+  if ($repoConfig.host -eq 'azure') {
+    return "$($repoConfig.azureUrl)/$([uri]::EscapeDataString($repoConfig.project))/_git/$([uri]::EscapeDataString($repoConfig.name))/pullrequest/$id"
+  }
   return "https://bitbucket.org/$($repoConfig.workspace)/$($repoConfig.name)/pull-requests/$id"
 }
 
@@ -79,10 +82,35 @@ function Get-BitbucketPrs($repoConfig, $headers) {
   })
 }
 
+function ConvertTo-UtcText($value) {
+  if (-not $value) { return $null }
+  return ([datetime]$value).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+}
+
+function Get-AzurePrs($repoConfig, $headers) {
+  $pullRequests = (Invoke-Azure -Headers $headers -Uri "$(Get-AzureRepositoryApi $repoConfig)/pullrequests?searchCriteria.status=active&`$top=100").value
+  return @($pullRequests | ForEach-Object {
+    $threads = Get-AzureThreads $repoConfig $headers $_.pullRequestId
+    $lastActivity = @(@($_.creationDate) + @($threads | ForEach-Object { $_.lastUpdatedDate }) | Sort-Object { [datetime]$_ } -Descending)[0]
+    @{ id = $_.pullRequestId; title = $_.title; author = $_.createdBy.displayName
+       source = Get-AzureBranchName $_.sourceRefName; dest = Get-AzureBranchName $_.targetRefName
+       comments = @($threads | ForEach-Object { Get-AzureHumanComments $_ }).Count; updated = ConvertTo-UtcText $lastActivity
+       approverIds = @($_.reviewers | Where-Object { $_.vote -ge $AZURE_APPROVED_VOTE } | ForEach-Object { $_.id }) }
+  })
+}
+
 function Get-Me($repoConfig, $headers) {
   if ($repoConfig.host -eq 'github') {
     $login = gh api user --jq .login 2>$null
     return @{ name = $login; id = $login }
+  }
+  if ($repoConfig.host -eq 'azure') {
+    try {
+      $user = (Invoke-RestMethod -Uri "$($repoConfig.azureUrl)/_apis/connectionData" -Headers $headers).authenticatedUser
+      return @{ name = $user.providerDisplayName; id = $user.id }
+    } catch {
+      return @{ name = $null; id = $null }
+    }
   }
   try {
     $user = Invoke-Bitbucket -Headers $headers -Path 'user'
@@ -94,6 +122,11 @@ function Get-Me($repoConfig, $headers) {
 
 function Get-RepoAccess($repoConfig) {
   if ($repoConfig.host -eq 'github') { Use-GhAccount $repoConfig.ghAccount; return @{ headers = $null; error = $null } }
+  if ($repoConfig.host -eq 'azure') {
+    $azureHeaders = Get-AzureHeaders $repoConfig.tokenVariable
+    if ($azureHeaders) { return @{ headers = $azureHeaders; error = $null } }
+    return @{ headers = $null; error = "nema $($repoConfig.tokenVariable) u environment varijablama (vidi README)" }
+  }
   $headers = Get-BitbucketHeaders $repoConfig.workspace
   if ($headers) { return @{ headers = $headers; error = $null } }
   $prefix = Get-BitbucketVariablePrefix $repoConfig.workspace
@@ -111,7 +144,11 @@ if ($List) {
       $problem = $access.error
     }
     if ($problem) { $groups += @{ repo = $name; error = $problem; prs = @() }; continue }
-    $prs = if ($repoConfig.host -eq 'github') { Get-GithubPrs $repoConfig } else { Get-BitbucketPrs $repoConfig $access.headers }
+    $prs = switch ($repoConfig.host) {
+      'github' { Get-GithubPrs $repoConfig }
+      'azure' { Get-AzurePrs $repoConfig $access.headers }
+      default { Get-BitbucketPrs $repoConfig $access.headers }
+    }
     $me = Get-Me $repoConfig $access.headers
     $groups += @{ repo = $name; host = $repoConfig.host; config = $repoConfig; me = $me; prs = @($prs) }
   }
@@ -220,9 +257,81 @@ function Get-BitbucketPullRequest($headers) {
   }
 }
 
-$pull = if ($cfg.host -eq 'github') { Get-GithubPullRequest } else { Get-BitbucketPullRequest $access.headers }
+function Get-AzureChecks($api, $headers, $pullRequest) {
+  $checks = @((Invoke-Azure -Headers $headers -Uri "$api/pullRequests/$Pr/statuses").value | ForEach-Object {
+    $checkName = (@($_.context.genre, $_.context.name) | Where-Object { $_ }) -join '/'
+    @{ state = $_.state; name = $checkName }
+  })
+  $artifactId = "vstfs:///CodeReview/CodeReviewId/$($pullRequest.repository.project.id)/$Pr"
+  $policyUri = "$($cfg.azureUrl)/$([uri]::EscapeDataString($cfg.project))/_apis/policy/evaluations?artifactId=$([uri]::EscapeDataString($artifactId))"
+  try { $evaluations = (Invoke-Azure -Headers $headers -ApiVersion $AZURE_POLICY_API_VERSION -Uri $policyUri).value } catch { $evaluations = @() }
+  $buildEvaluations = @($evaluations | Where-Object { $_.configuration.type.id -eq $AZURE_BUILD_POLICY_TYPE_ID -and $_.status -ne 'notApplicable' })
+  $checkStateByPolicyStatus = @{ approved = 'succeeded'; rejected = 'failed'; broken = 'error' }
+  $checks += @($buildEvaluations | ForEach-Object {
+    $policyName = if ($_.configuration.settings.displayName) { $_.configuration.settings.displayName } else { $_.configuration.type.displayName }
+    $checkState = if ($checkStateByPolicyStatus[$_.status]) { $checkStateByPolicyStatus[$_.status] } else { $_.status }
+    @{ state = $checkState; name = $policyName }
+  })
+  return $checks
+}
+
+function Get-AzurePathsChangedSince($api, $headers, $lastIteration, $iteration) {
+  $changes = (Invoke-Azure -Headers $headers -Uri "$api/pullRequests/$Pr/iterations/$lastIteration/changes?`$compareTo=$iteration&`$top=2000").changeEntries
+  return @($changes | ForEach-Object { ([string]$_.item.path).TrimStart('/') })
+}
+
+function Get-AzurePullRequest($headers) {
+  $api = Get-AzureRepositoryApi $cfg
+  $pullRequest = Invoke-Azure -Headers $headers -Uri "$api/pullrequests/$Pr"
+  $threads = Get-AzureThreads $cfg $headers $Pr
+  $iterationIds = @((Invoke-Azure -Headers $headers -Uri "$api/pullRequests/$Pr/iterations").value | ForEach-Object { [int]$_.id })
+  $lastIteration = ($iterationIds | Measure-Object -Maximum).Maximum
+  $me = Get-Me $cfg $headers
+  $pathsChangedSince = @{}
+  $comments = @()
+  foreach ($thread in $threads) {
+    $path = ([string]$thread.threadContext.filePath).TrimStart('/')
+    $isInline = [bool]$path
+    $outdated = $false
+    $commentIteration = [int]$thread.pullRequestThreadContext.iterationContext.secondComparingIteration
+    if ($isInline -and $commentIteration -and $commentIteration -lt $lastIteration) {
+      if (-not $pathsChangedSince.ContainsKey($commentIteration)) { $pathsChangedSince[$commentIteration] = Get-AzurePathsChangedSince $api $headers $lastIteration $commentIteration }
+      $outdated = $pathsChangedSince[$commentIteration] -contains $path
+    }
+    foreach ($comment in Get-AzureHumanComments $thread) {
+      $replyTo = if ($comment.parentCommentId) { Get-AzureCommentId $thread $comment.parentCommentId } else { $null }
+      $comments += @{ id = Get-AzureCommentId $thread $comment.id; replyTo = $replyTo; authorId = $comment.author.id; author = $comment.author.displayName
+                      created = ConvertTo-UtcText $comment.publishedDate; inline = $isInline
+                      path = $(if ($isInline) { $path } else { $null }); line = $(if ($isInline) { Get-AzureThreadLine $thread } else { $null })
+                      outdated = $outdated; text = ($comment.content -replace '\s+', ' ') }
+    }
+  }
+  $myComments = @($comments | Where-Object { $me.id -and $_.authorId -eq $me.id })
+  foreach ($comment in $comments) { $comment.Remove('authorId') }
+  $state = if ($pullRequest.isDraft -and $pullRequest.status -eq 'active') { 'draft' } else { $pullRequest.status }
+  return @{
+    title = $pullRequest.title; description = $pullRequest.description; author = $pullRequest.createdBy.displayName
+    source = Get-AzureBranchName $pullRequest.sourceRefName; dest = Get-AzureBranchName $pullRequest.targetRefName
+    state = $state; headSha = $pullRequest.lastMergeSourceCommit.commitId; me = $me.name
+    approvals = @($pullRequest.reviewers | ForEach-Object { @{ name = $_.displayName; approved = ($_.vote -ge $AZURE_APPROVED_VOTE) } })
+    ci = @(Get-AzureChecks $api $headers $pullRequest)
+    comments = $comments
+    fetchSpec = Get-AzureFetchSpec $pullRequest $Pr
+    myLastAt = @($myComments | ForEach-Object { $_.created } | Sort-Object -Descending)[0]
+    reviewedSha = $null
+    myActivityIds = @($myComments | ForEach-Object { $_.id })
+    pullRequest = $pullRequest
+  }
+}
+
+$pull = switch ($cfg.host) {
+  'github' { Get-GithubPullRequest }
+  'azure' { Get-AzurePullRequest $access.headers }
+  default { Get-BitbucketPullRequest $access.headers }
+}
 $diffPath = Join-Path $ScratchDir "pr-$Repo-$Pr.diff"
-Get-PullRequestDiff $cfg $Pr $access.headers | Out-File $diffPath -Encoding utf8
+$diff = if ($cfg.host -eq 'azure') { Get-AzureLocalDiff $cfg $Pr $pull.pullRequest } else { Get-PullRequestDiff $cfg $Pr $access.headers }
+$diff | Out-File $diffPath -Encoding utf8
 $key = $null; if ("$($pull.title) $($pull.source)" -match $cfg.ticketRegex) { $key = $Matches[0] }
 
 $baseSha = Get-NotesHead $Repo $Pr; $baseSource = 'notes'

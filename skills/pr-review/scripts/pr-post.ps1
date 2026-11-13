@@ -1,17 +1,19 @@
 <#
-  pr-post.ps1 — post saved /pr-review draft comments to a GitHub or Bitbucket PR. SAFE BY DEFAULT.
+  pr-post.ps1 — post saved /pr-review draft comments to a GitHub, Bitbucket or Azure DevOps PR. SAFE BY DEFAULT.
   Without -Post it only DRY-RUNS (prints what would be posted). Nothing leaves the machine
   unless -Post is passed. Idempotent: comments already posted (posted=<id>) are skipped.
 
   GitHub inline comments need the line to exist in the PR diff; if it doesn't, the comment is posted
   as a general comment prefixed with "re: <path>:<line>" so nothing is lost.
   Bitbucket posting needs the write token BITBUCKET_<WORKSPACE>_TOKEN_WRITE (see pr-common.ps1).
+  Azure DevOps posting uses the repo's tokenVariable PAT, which then needs Code (Read & write).
 
   Manifest = editable Markdown at <ReviewsDir>/<repo>-<pr>.md, one block per comment:
     ## PR-COMMENT 1 | inline | src/Shop.Api/Orders/OrderService.cs | 16 | posted=no
     <comment body, multi-line, until next "## PR-COMMENT" or EOF>
     ## PR-COMMENT 2 | reply | 123456789 | - | posted=no
-  (general comment => path/line are "-"; reply => path is the id of the thread's first inline comment, line is "-").
+  (general comment => path/line are "-"; reply => path is the id of the thread's first inline comment, line is "-";
+   on Azure DevOps comment ids are <threadId>-<commentId> as the harvest gives them).
   On successful -Post, posted=no is rewritten to posted=<id>.
 
   Dedup: before showing/posting, the script fetches comments already on the PR and flags any draft
@@ -44,9 +46,14 @@ $problem = Get-ConfigError $cfg $Repo
 if ($problem) { Write-Output "GREŠKA: $problem"; exit 0 }
 $Repo = $cfg.name
 $isGithub = $cfg.host -eq 'github'
+$isAzure = $cfg.host -eq 'azure'
 $slug = if ($isGithub) { "$($cfg.owner)/$Repo" } else { "$($cfg.workspace)/$Repo" }
-$readHeaders = $null
-if ($isGithub) { Use-GhAccount $cfg.ghAccount } else { $readHeaders = Get-BitbucketHeaders $cfg.workspace }
+$azureApi = if ($isAzure) { Get-AzureRepositoryApi $cfg } else { $null }
+$readHeaders = switch ($cfg.host) {
+  'github' { Use-GhAccount $cfg.ghAccount; $null }
+  'azure' { Get-AzureHeaders $cfg.tokenVariable }
+  default { Get-BitbucketHeaders $cfg.workspace }
+}
 
 if (-not $File) { $File = Join-Path $ReviewsDir "$Repo-$Pr.md" }
 if (-not (Test-Path $File)) { Write-Output "GREŠKA: nema manifesta ($File). Prvo pokreni /pr-review $Repo $Pr."; exit 0 }
@@ -72,7 +79,20 @@ function New-ExistingComment($id, $replyTo, $author, $inline, $path, $line, $tex
   [pscustomobject]@{ id = $id; replyTo = $replyTo; author = $author; inline = $inline
                      path = if ($path) { ($path -replace '\\', '/').ToLower() } else { $null }; line = $line; text = (($text -replace '\s+', ' ').Trim()) }
 }
+function Get-ExistingAzureComments {
+  if (-not $readHeaders) { return $null }
+  try { $threads = Get-AzureThreads $cfg $readHeaders $Pr } catch { return $null }
+  return , @($threads | ForEach-Object {
+    $thread = $_
+    $path = ([string]$thread.threadContext.filePath).TrimStart('/')
+    Get-AzureHumanComments $thread | ForEach-Object {
+      $replyTo = if ($_.parentCommentId) { Get-AzureCommentId $thread $_.parentCommentId } else { $null }
+      New-ExistingComment (Get-AzureCommentId $thread $_.id) $replyTo $_.author.displayName ([bool]$path) $path (Get-AzureThreadLine $thread) $_.content
+    }
+  })
+}
 function Get-ExistingPrComments {
+  if ($isAzure) { return Get-ExistingAzureComments }
   if (-not $isGithub) {
     if (-not $readHeaders) { return $null }
     try {
@@ -150,7 +170,7 @@ if (-not $Post) {
     & git -C $repoRoot rev-parse --verify --quiet "pr-$Pr" *> $null
     if ($LASTEXITCODE -eq 0) { $prRef = "pr-$Pr" }
   }
-  $diffLines = Get-PrDiffLines
+  $diffLines = if ($isGithub) { Get-PrDiffLines } else { $null }
   foreach ($c in $sel) {
     $flag = if ($c.posted -ne 'no') { "  [VEĆ OBJAVLJENO id=$($c.posted) - preskače se]" } else { "" }
     if ($c.type -eq 'inline') {
@@ -213,7 +233,11 @@ if (-not $Post) {
   $skip = @($sel | Where-Object { $_.posted -eq 'no' -and $_.dup -and $_.type -eq 'inline' }).Count
   $todo = @($sel | Where-Object { $_.posted -eq 'no' -and -not ($_.dup -and $_.type -eq 'inline') }).Count
   if ($dupUnavailable) {
-    $why = if ($isGithub) { 'gh ne može dohvatiti komentare (provjeri gh auth / SSO / račun)' } else { "nema read tokena $(Get-BitbucketVariablePrefix $cfg.workspace)_TOKEN ili Bitbucket ne odgovara" }
+    $why = switch ($cfg.host) {
+      'github' { 'gh ne može dohvatiti komentare (provjeri gh auth / SSO / račun)' }
+      'azure' { "nema tokena u $($cfg.tokenVariable) ili Azure DevOps ne odgovara" }
+      default { "nema read tokena $(Get-BitbucketVariablePrefix $cfg.workspace)_TOKEN ili Bitbucket ne odgovara" }
+    }
     Write-Output "(⚠️ dedup preskočen — $why; preview je BEZ provjere duplikata)"
   } elseif ($dupCount -gt 0) {
     Write-Output "($dupCount označeno kao moguć duplikat; $skip inline se preskaču na -Post osim uz -Force)"
@@ -228,6 +252,17 @@ if ($isGithub) {
   if ($LASTEXITCODE -ne 0 -or -not $ghHeadSha) {
     Write-Output "GREŠKA: gh ne vidi $slug #$Pr. Provjeri: gh auth status, SSO autorizaciju org-a, i ghAccount u config.local.ps1."
     exit 0
+  }
+} elseif ($isAzure) {
+  $writeHeaders = $readHeaders
+  if (-not $writeHeaders) {
+    Write-Output "GREŠKA: nema tokena u $($cfg.tokenVariable). PAT treba Code (Read & write), vidi README."
+    exit 0
+  }
+  $lastIteration = (@((Invoke-Azure -Headers $writeHeaders -Uri "$azureApi/pullRequests/$Pr/iterations").value | ForEach-Object { [int]$_.id }) | Measure-Object -Maximum).Maximum
+  $changeTrackingIdByPath = @{}
+  foreach ($change in (Invoke-Azure -Headers $writeHeaders -Uri "$azureApi/pullRequests/$Pr/iterations/$lastIteration/changes?`$top=2000").changeEntries) {
+    $changeTrackingIdByPath[([string]$change.item.path).TrimStart('/').ToLower()] = $change.changeTrackingId
   }
 } else {
   $writeHeaders = Get-BitbucketHeaders $cfg.workspace -Write
@@ -279,6 +314,32 @@ function Publish-BitbucketComment($c) {
   return @{ error = 'Bitbucket nije vratio id komentara' }
 }
 
+function Publish-AzureComment($c) {
+  $comment = @{ parentCommentId = 0; content = $c.text; commentType = 1 }
+  try {
+    if ($c.type -eq 'reply') {
+      $threadId, $parentCommentId = "$($c.path)" -split '-'
+      $comment.parentCommentId = if ($parentCommentId) { [int]$parentCommentId } else { 1 }
+      $resp = Invoke-Azure -Headers $writeHeaders -Uri "$azureApi/pullRequests/$Pr/threads/$threadId/comments" -Method Post -Body $comment
+      return @{ id = "$threadId-$($resp.id)" }
+    }
+    $thread = @{ comments = @($comment); status = 1 }
+    if ($c.type -eq 'inline') {
+      $path = ($c.path -replace '\\', '/').TrimStart('/')
+      $position = @{ line = [int]$c.line; offset = 1 }
+      $thread.threadContext = @{ filePath = "/$path"; rightFileStart = $position; rightFileEnd = $position }
+      $changeTrackingId = $changeTrackingIdByPath[$path.ToLower()]
+      if ($changeTrackingId) {
+        $thread.pullRequestThreadContext = @{ changeTrackingId = $changeTrackingId; iterationContext = @{ firstComparingIteration = 1; secondComparingIteration = $lastIteration } }
+      }
+    }
+    $resp = Invoke-Azure -Headers $writeHeaders -Uri "$azureApi/pullRequests/$Pr/threads" -Method Post -Body $thread
+    return @{ id = "$($resp.id)-$($resp.comments[0].id)" }
+  } catch {
+    return @{ error = "Azure DevOps je odbio komentar: $($_.Exception.Message)" }
+  }
+}
+
 $posted = 0; $failed = 0
 foreach ($c in $sel) {
   if ($c.posted -ne 'no') { Write-Output "#$($c.n) preskočen (već objavljen id=$($c.posted))"; continue }
@@ -286,12 +347,16 @@ foreach ($c in $sel) {
     Write-Output "#$($c.n) ⏭  preskočen (duplikat — već postoji komentar na $($c.path):$($c.line) od $($c.dup.author); -Force da ipak objaviš)"
     continue
   }
-  if ($c.type -eq 'reply' -and $c.path -notmatch '^\d+$') {
+  if ($c.type -eq 'reply' -and $c.path -notmatch '^\d+(-\d+)?$') {
     $failed++
     Write-Output "#$($c.n) ❌ NIJE objavljen: reply traži id komentara, a dobio je '$($c.path)'"
     continue
   }
-  $r = if ($isGithub) { Publish-GithubComment $c } else { Publish-BitbucketComment $c }
+  $r = switch ($cfg.host) {
+    'github' { Publish-GithubComment $c }
+    'azure' { Publish-AzureComment $c }
+    default { Publish-BitbucketComment $c }
+  }
   if ($r.id) {
     $c.posted = "$($r.id)"; $posted++
     $note = if ($r.note) { "  ($($r.note))" } else { "" }

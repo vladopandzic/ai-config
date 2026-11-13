@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Multi-perspective PR review za GitHub i Bitbucket repoe iz config.local.ps1. Harvesta PR (diff, komentari, CI, tiket), paralelno pušta nezavisne perspektive (bugs/arhitektura/testovi/sigurnost/perf/konvencije/ticket-fit/neriješeni komentari/dizajn), svaku provjerenu u lokalnom repou, i spaja ih u jedan rangiran izvještaj s gotovim draft komentarima. Bug nalazi se dokazuju pokrenutim testom. Ništa se ne objavljuje na PR bez izričite potvrde.
+description: Multi-perspective PR review za GitHub, Bitbucket i Azure DevOps repoe iz config.local.ps1. Harvesta PR (diff, komentari, CI, tiket), paralelno pušta nezavisne perspektive (bugs/arhitektura/testovi/sigurnost/perf/konvencije/ticket-fit/neriješeni komentari/dizajn), svaku provjerenu u lokalnom repou, i spaja ih u jedan rangiran izvještaj s gotovim draft komentarima. Bug nalazi se dokazuju pokrenutim testom. Ništa se ne objavljuje na PR bez izričite potvrde.
 user-invocable: true
 ---
 
@@ -20,6 +20,10 @@ Putanje u ovom fajlu kreću od foldera skilla, `$HOME/.claude/skills/pr-review/`
 1. Ako `config.local.ps1` već postoji, pročitaj ga: dodaješ repoe koji fale, postojeće ne diraš.
 2. Pitaj u kojem folderu korisnik drži projekte. U njemu, do dvije razine dubine, nađi git repoe čiji `origin` vodi na
    `github.com` ili `bitbucket.org`, i iz adrese izvuci ime repoa te `owner` (GitHub) ili `workspace` (Bitbucket).
+   Azure DevOps prepoznaješ po `dev.azure.com`, `*.visualstudio.com` ili `/_git/` u adresi (server u firmi):
+   `https://<host>/<put>/<project>/_git/<repo>` daje `azureUrl = https://<host>/<put>` (organizacija ili kolekcija),
+   `project` i ime repoa; SSH `git@ssh.dev.azure.com:v3/<org>/<project>/<repo>` daje `https://dev.azure.com/<org>`.
+   Korisničko ime ispred `@` u adresi ne ide u `azureUrl`.
    Preskoči submodule (`.git` je fajl, ne folder), worktreeje i drugi klon istog repoa; ostaje klon na najvišoj razini.
 3. Pokaži popis (repo, host, owner ili workspace, lokalni folder) i pitaj koje reviewa. Ništa ne upisuj bez tog izbora.
 4. Za svaki izabrani repo:
@@ -37,7 +41,10 @@ Putanje u ovom fajlu kreću od foldera skilla, `$HOME/.claude/skills/pr-review/`
    zna koji su komentari i approve korisnikovi: ili neka doda taj scope, ili u sudionicima zadnjih PR-ova tog workspacea
    nađi `account_id` čiji je `display_name` jednak korisnikovom `git config user.name`, pokaži ga i nakon potvrde upiši
    kao `bitbucketAccountId`.
-7. Pokreni `check-setup.ps1` iz korijena ai-config repoa (dva foldera iznad pravog foldera skilla) i pokaži što još fali.
+7. Za svaki Azure DevOps repo pitaj u kojoj environment varijabli drži PAT za tu organizaciju ili server i upiši njeno
+   ime kao `tokenVariable`. Ako je još nema, reci koji scope treba (README) i kako je sam upiše u svom terminalu, kao
+   gore. Token nikad ne traži u chatu. Kad je upisana, provjeri `-List` za taj repo.
+8. Pokreni `check-setup.ps1` iz korijena ai-config repoa (dva foldera iznad pravog foldera skilla) i pokaži što još fali.
 
 ## 0. Bez argumenta → izbor PR-a
 
@@ -65,12 +72,13 @@ korisniku što piše i stani. `localPath` je lokalni klon, `reviewsDir` folder z
   checkouta. Perspektive čitaju preko `git show pr-<n>:<path>`, a build i mutacije idu u export ili worktree u scratchpadu
   (vidi `references/verify-gotchas.md`).
 - **Komentari:** `comments[]` ima opće i inline komentare (inline s `path`, `line`, `id`, `replyTo`; na GitHubu `outdated`
-  znači da je `line` iz starije verzije fajla); trebaju ih dedup (3),
+  znači da je `line` iz starije verzije fajla, na Azure DevOpsu da se fajl mijenjao nakon komentara; tamo je `id` oblika
+  `<nit>-<komentar>`); trebaju ih dedup (3),
   `nerijeseni-komentari` i `testovi`. Commit poruke: `git -C <localPath> log --format='%h %aI %B' origin/<dest>..pr-<n>`.
 - **Re-review (nova runda):** harvest to već izračuna u `previousReview`: `at` (tvoja zadnja aktivnost), `baseSha` (head koji
   si reviewao; izvor `baseSource` = `notes` iz `objasnjenje.md` ili `github-review`), `headSha`,
   `deltaAvailable`/`deltaReason`, `deltaDiffPath` (+`deltaDiffLines`), `changedFiles`, `commitsSince` i `myCommentIds`
-  (id-evi tvojih reviewa ili komentara). Na Bitbucketu head prošle runde postoji samo iz `objasnjenje.md`.
+  (id-evi tvojih reviewa ili komentara). Na Bitbucketu i Azure DevOpsu head prošle runde postoji samo iz `objasnjenje.md`.
   Delta je sužena na fajlove koje PR stvarno mijenja prema ciljnoj grani, pa merge ciljne grane u PR nije šum.
 - **⚠️ SNIMI harvest snapshot na disk:** cijeli JSON u `<reviewsDir>/<repo>-<pr>.harvest.json`. Iz njega čitaju dedup
   i iduća runda.
@@ -150,7 +158,7 @@ jedan** kratak test; POPRAVI/SPOJI/MAKNI nosi samo promijenjene linije ili nijed
 - **`inline`:** linija mora biti u diffu (`+` ili kontekst). Ako je stvarni problem izvan diffa, uzmi najbližu liniju diffa koja ga
   pokreće, a pravu lokaciju napiši u tekst. Ako takve nema, ide `general`.
 - **`reply`:** id je iz `comments[]` u snapshotu. Na GitHubu samo za inline nit, i to id prvog komentara niti (`replyTo` ako
-  postoji, inače `id`). Na Bitbucketu može na bilo koji komentar.
+  postoji, inače `id`). Na Bitbucketu i Azure DevOpsu može na bilo koji komentar.
 - Oznake (`severity`, `⚠️`) ostaju u izvještaju. U tekst komentara ide obična rečenica, npr. "nisam provjerio izvođenjem".
 
 Akcije koje ponudiš: **`/pr-review objavi <repo> <n> [brojevi]`**, `uredi N` (korisnik doradi manifest rukom), `preskoči`.
