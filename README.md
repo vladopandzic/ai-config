@@ -53,6 +53,10 @@ Adds, checks, removes and applies EF Core migrations in any .NET repo. It finds 
 
 Gets the current branch ready for a pull request: runs locally what the repo's CI runs (in a clean clone, with CI's .NET version), checks migrations and submodules, looks through the diff for leftovers and drafts the PR description. It never pushes or opens the PR on its own. `/prepare-pr quick` runs only the tests for the changed projects.
 
+### /release
+
+Prepares a release the way the repo already does it: reads the release docs, CI tag patterns and earlier tags, proposes the next version, lists what goes in and the migrations the release will run, and makes the release branch with the version bump locally. The branch and the annotated tag are pushed only after an explicit yes, because the tag usually deploys.
+
 ## Keeping clients out of the repo
 
 This repo is meant to be shared, so a pre-commit hook runs `check-no-clients.ps1` on the lines you are about to commit and stops the commit if it finds an e-mail address, a personal Windows path, a token, or anything from your own denylist.

@@ -22,7 +22,7 @@ Nothing here pushes, opens a PR or rewrites commits. Each of those is offered at
 
 Find the CI definition (`Jenkinsfile`, `bitbucket-pipelines.yml`, `.github/workflows/*.yml`, `azure-pipelines.yml`) and the repo's own PR target (`make prepare-pr` or similar). Run the same commands locally with the same flags. When CI and the PR target disagree, CI wins.
 
-- **Test what the PR contains**: with uncommitted changes, run the checks in a clone of the branch in the temp folder (`git clone --no-hardlinks`), not in the user's working tree.
+- **Test what the PR contains**: with uncommitted changes, run the checks in a clone of the branch in the temp folder (`git -c core.longpaths=true clone --no-hardlinks`), not in the user's working tree.
 - **Same SDK as CI**: when CI pins a .NET version, pin it in the clone with a `global.json`. When CI runs on Linux and the matching image (`mcr.microsoft.com/dotnet/sdk:<version>`) is already local, run the step in it; ask before pulling an image.
 - **Branch or base?** For every failure, look at the base branch's last CI run (`gh run list`, Bitbucket Pipelines or Jenkins). If the base passed there, run the same step on the base locally. Report failures the base has too separately from failures the branch causes.
 
