@@ -88,7 +88,7 @@ python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthr
 ```
 
 - `pr_topics.py` finds from the diff what the PR touches (migrations, packages, settings, background jobs, external services, permissions, alerts, CI, screens, tests); its rules are for .NET. `pr_packages.py` adds where each changed NuGet package is used and its health from the public NuGet API (only package ids and versions are sent).
-- `pr_db.py` builds the "Baza" view only when the PR changes an EF model snapshot. Sample rows come from a local PostgreSQL through the repo's user-secrets, read-only. Without `--no-ai` it asks Claude Code for example rows of tables the local database does not have; leave that to the user.
+- `pr_db.py` builds the "Baza" view only when the PR changes an EF model snapshot. It reads PostgreSQL, SQL Server and SQLite snapshots; when the PR changes several DbContexts, each table name carries its context. Sample rows come only from a local PostgreSQL through the repo's user-secrets, read-only. Without `--no-ai` it asks Claude Code for example rows of tables the local database does not have; leave that to the user.
 - Leave out an optional `NAME=` whose file does not exist; the page then hides that part.
 
 Review findings: when `<reviewsDir>\<repo>-<pr>.findings.json` exists, copy it to `<data>\findings.json` and pass `FINDINGS=`. A findings file made for an older head still shows, with a note that the lines may have moved.

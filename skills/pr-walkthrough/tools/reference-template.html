@@ -4844,8 +4844,18 @@ ${code}
   const dbSave = () => dbPut(DB_KEY, { mode: dbv.mode, tab: dbv.tab, sel: dbv.sel, gridOpen: dbv.gridOpen });
   const dbChecksAll = dbStore(DB_CK_KEY, {});
   const dbDone = id => !!dbChecksAll[META.head || '']?.[id];
-  const dbQ = n => `"${n}"`;
-  const dbDdl = (t, c) => t.status === 'dropped' || c.status === 'dropped' ? '-- stupac nestaje s tablicom' : `${dbQ(c.name)} ${c.type.replace(' (enum)', '')}${c.nullable ? '' : ' NOT NULL'}`;
+  // db.json names the provider per table (several DbContexts can mix them); SQL in this view follows it
+  const DB_PROVIDERS = {
+    postgres: { label: 'PostgreSQL', q: n => `"${n}"`, top: false },
+    sqlserver: { label: 'SQL Server', q: n => `[${n}]`, top: true },
+    sqlite: { label: 'SQLite', q: n => `"${n}"`, top: false },
+  };
+  const dbProv = t => DB_PROVIDERS[t?.provider || DBV.provider] || DB_PROVIDERS.postgres;
+  const dbQ = (n, t) => dbProv(t).q(n);
+  const dbTbl = t => (t.schema ? dbQ(t.schema, t) + '.' : '') + dbQ(t.table || t.name, t);
+  const dbTopSql = (t, n, cols, rest) => dbProv(t).top ? `SELECT TOP ${n} ${cols} FROM ${dbTbl(t)}${rest};` : `SELECT ${cols} FROM ${dbTbl(t)}${rest} LIMIT ${n};`;
+  const dbLabels = () => [...new Set((DBV.contexts?.length ? DBV.contexts : [{}]).map(x => dbProv(x).label))].join(' / ');
+  const dbDdl = (t, c) => t.status === 'dropped' || c.status === 'dropped' ? '-- stupac nestaje s tablicom' : `${dbQ(c.name, t)} ${c.type.replace(' (enum)', '')}${c.nullable ? '' : ' NOT NULL'}`;
   const dbBase = p => (p || '').split('/').pop();
   const dbFk = (t, c) => (t.foreignKeys || []).find(f => f.column === c.name);
   const dbKeyTag = c => [/PK/.test(c.key || '') && 'PK', /FK/.test(c.key || '') && 'FK'].filter(Boolean).join('·');
@@ -5573,11 +5583,11 @@ ${code}
     head.append(el('span', 'caret', dbv.gridOpen ? '▾' : '▴'), el('span', 'h', 'Rezultati'));
     const sr = t?.sampleRows;
     if (!t || !sr) {
-      head.append(el('span', 'sql', t ? `SELECT * FROM ${dbQ(t.name)} LIMIT 8` : ''), el('span', 'none', DBV.db?.source === 'db' ? '— tablica nije u lokalnoj bazi, a DesignTime nema primjera' : `— lokalna baza nije dostupna${DBV.db?.error ? ': ' + DBV.db.error : ''}`));
+      head.append(el('span', 'sql', t ? dbTopSql(t, 8, '*', '') : ''), el('span', 'none', DBV.db?.source === 'db' ? '— tablica nije u lokalnoj bazi, a DesignTime nema primjera' : `— lokalna baza nije dostupna${DBV.db?.error ? ': ' + DBV.db.error : ''}`));
       pane.append(head);
       return pane;
     }
-    head.append(el('span', 'sql', `SELECT * FROM ${dbQ(t.name)} LIMIT 8`), el('span', 'src ' + sr.source, sr.source === 'db' ? `${DB_SRC.db} · ${DBV.db?.name || ''}` : DB_SRC[sr.source] || sr.source));
+    head.append(el('span', 'sql', dbTopSql(t, 8, '*', '')), el('span', 'src ' + sr.source, sr.source === 'db' ? `${DB_SRC.db} · ${DBV.db?.name || ''}` : DB_SRC[sr.source] || sr.source));
     if (t.status === 'dropped') head.append(el('span', 'drop', '✕ ovi redovi nestaju s DropTable'));
     head.append(el('span', 'cnt', sr.total == null ? `${sr.rows.length} primjera` : `${Math.min(8, sr.rows.length)} od ${sr.total} redova`));
     pane.append(head);
@@ -5607,7 +5617,7 @@ ${code}
       if (note) { rn.title = note; rn.classList.add('note'); rn.textContent = `${ri + 1} ?`; tr.classList.add('edge'); }
       tr.append(rn);
       row.forEach((v, i) => {
-        const c = t.columns[i], numeric = /double|real|numeric|decimal|integer|bigint/.test(c?.type || '');
+        const c = t.columns[i], numeric = /double|real|numeric|decimal|int\b|integer|float|money/i.test(c?.type || '');
         const expr = v && typeof v === 'object', s = expr ? v.expr : v == null ? 'NULL' : String(v);
         const bad = !expr && (s === 'NaN' || (numeric && /^-\d/.test(s)));
         const td = el('td', [i === ci ? 'on' : '', s === 'NULL' ? 'nul' : '', s === '—' ? 'dash' : '', expr ? 'expr' : '', bad ? 'bad' : ''].filter(Boolean).join(' '), s);
@@ -5669,7 +5679,7 @@ ${code}
     out.append(top);
     const fk = dbFk(t, c), kv = el('div', 'db-kv');
     [['Tip', c.type], ['Null', c.nullable ? 'NULL' : 'NOT NULL'], ['Ključ', c.key || '—'], ['FK', fk ? `${fk.to} · ON DELETE ${fk.onDelete}` : '—']].forEach(([k, v]) => kv.append(el('span', 'k', k), el('span', null, v)));
-    if (c.before) kv.append(el('span', 'k', 'Prije'), el('span', null, `${c.before.type}${c.before.nullable ? ' NULL' : ' NOT NULL'}`));
+    if (c.before) kv.append(el('span', 'k', 'Prije'), el('span', null, `${c.before.name ? c.before.name + ' ' : ''}${c.before.type}${c.before.nullable ? ' NULL' : ' NOT NULL'}`));
     out.append(kv);
     if (fk?.note) out.append(el('div', 'db-fkn', fk.note));
     const flags = c.flags || [], fs = dbSection(`Zastavice · ${flags.length}`);
@@ -5715,7 +5725,7 @@ ${code}
     kv2.append(fl);
     ff.append(kv2);
     out.append(ff);
-    const sample = c.sample, sql = t.status === 'dropped' ? `SELECT count(*) FROM ${dbQ(t.name)};  -- redovi koji nestaju` : `SELECT ${dbQ(c.name)}, count(*) FROM ${dbQ(t.name)}\nGROUP BY ${dbQ(c.name)} ORDER BY 2 DESC LIMIT 5;`;
+    const sample = c.sample, sql = t.status === 'dropped' ? `SELECT count(*) FROM ${dbTbl(t)};  -- redovi koji nestaju` : dbTopSql(t, 5, `${dbQ(c.name, t)}, count(*)`, `\nGROUP BY ${dbQ(c.name, t)} ORDER BY 2 DESC`);
     const badge = el('span', 'src ' + (sample?.source || 'none'), sample ? (sample.source === 'db' ? `${DB_SRC.db} · ${DBV.db?.name || ''}` : DB_SRC[sample.source]) : '— nema podataka');
     const ds = dbSection('Podaci', badge);
     ds.querySelector('.db-sh').append(dbBtn('db-copy sm', 'kopiraj SQL', null, () => dbCopy(sql, 'SQL za ' + c.name)));
@@ -5767,7 +5777,7 @@ ${code}
   function dbChecksTab() {
     const list = DBV.checks || [], done = list.filter(k => dbDone(k.id)).length, out = el('div', 'db-chk');
     const intro = el('div', 'db-bar');
-    intro.append(el('span', null, 'Upiti koje bi inače pisao u SQL klijentu (PostgreSQL). Kopiraj, pokreni, kvačica se pamti po PR-u i commitu. '), el('b', null, `${done} / ${list.length}`), ' gotovo.');
+    intro.append(el('span', null, `Upiti koje bi inače pisao u SQL klijentu (${dbLabels()}). Kopiraj, pokreni, kvačica se pamti po PR-u i commitu. `), el('b', null, `${done} / ${list.length}`), ' gotovo.');
     out.append(intro);
     list.forEach(k => {
       const lv = DB_LV[k.lv] || DB_LV.info, isDone = dbDone(k.id);
@@ -5814,7 +5824,7 @@ ${code}
     const [t, cn] = dbSplit(dbv.sel), slim = x => { const { sampleRows, ...rest } = x; return rest; };
     const rows = withRows && t?.sampleRows ? t.sampleRows : null;
     return [
-      'Pitanje iz pogleda Baza u touru (što PR radi bazi). Podaci su izvučeni iz EF ModelSnapshota, migracije i koda na commitu ' + String(META.head || '').slice(0, 7) + '; "—" znači da podatka nema. SQL piši za PostgreSQL.',
+      'Pitanje iz pogleda Baza u touru (što PR radi bazi). Podaci su izvučeni iz EF ModelSnapshota, migracije i koda na commitu ' + String(META.head || '').slice(0, 7) + '; "—" znači da podatka nema. SQL piši za ' + dbProv(t).label + '.',
       `Migracija: ${(DBV.migrations || []).join(', ') || '—'}`,
       t ? `Odabrana tablica (JSON): ${JSON.stringify(slim(t))}` : '',
       `Odabrani stupac: ${cn || '—'}`,

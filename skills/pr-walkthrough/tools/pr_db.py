@@ -1,15 +1,17 @@
 """Data for the tour's "Baza" view: what the PR does to the database, column by column.
 
 Schema comes from the EF model snapshot at base and at head (tables, columns, types, keys, FKs, indexes, CHECKs), the
-migration's Up() gives the DDL lines and the order of operations. Who writes and reads a column is found with regexes
+migration's Up() gives the DDL lines and the order of operations. Every DbContext whose snapshot the PR changes is read on
+its own, with its own migrations and its provider (PostgreSQL, SQL Server or SQLite, read from the snapshot and migrations);
+with more than one, table names carry the context. Who writes and reads a column is found with regexes
 over the head checkout, scoped to the entity class and to receivers whose type is the entity (declared, or a lambda over
 a collection of it), so generic names like Start or Name don't pick up other types. Flags come from four fixed rules.
 
-Sample rows: the local database (connection from the repo's user-secrets, read-only transaction, psql); for a table it
+Sample rows: the local PostgreSQL database (connection from the repo's user-secrets, read-only transaction, psql); for a table it
 doesn't have, 8 example rows from Claude Code built on the schema, the code and the design-time seed (cached in db-ai.json
 next to the output, --ai-refresh to redo, --no-ai to skip). The source is always recorded; the password never leaves the process.
 
-Output (JSON): {"pr": {...}, "migrations": [path], "tables": [...], "sql": [{t, key, lv, cm, line}], "checks": [...], "db": {...}}
+Output (JSON): {"pr": {...}, "provider": str, "contexts": [...], "migrations": [path], "tables": [...], "sql": [{t, key, lv, cm, line}], "checks": [...], "db": {...}}
 
 Usage: python -I pr_db.py <repo> <base> <head> <out.json> [--no-db] [--no-ai] [--ai-refresh]
 """
@@ -31,7 +33,29 @@ SNAPSHOT = re.compile(r'Migrations/\w*ModelSnapshot\.cs$')
 MIGRATION = re.compile(r'Migrations/\d{14}_\w+\.cs$')
 CODE = re.compile(r'\.(cs|razor)$')
 SKIP = re.compile(r'(\.Designer\.cs|ModelSnapshot\.cs|\.g\.cs)$|/Migrations/|/(bin|obj)/')
-FLOAT_TYPES = ('double precision', 'real', 'numeric', 'decimal')
+DB_CONTEXT_ATTRIBUTE = re.compile(r'\[DbContext\(typeof\(([\w.]+)\)\)\]')
+CONTEXT_SEPARATOR = ' · '
+PROVIDERS = {
+    'postgres': {'label': 'PostgreSQL', 'quote': ('"', '"'), 'default_schema': 'public', 'int': 'integer', 'json': 'jsonb',
+                 'float': ('double precision', 'real', 'numeric', 'decimal'), 'accepts_nan': True,
+                 'local_time': ('timestamp without time zone',), 'zoned_time': ('timestamp with time zone',), 'zoned_label': 'with time zone',
+                 'add_column': 'ADD COLUMN'},
+    'sqlserver': {'label': 'SQL Server', 'quote': ('[', ']'), 'default_schema': 'dbo', 'int': 'int', 'json': 'nvarchar(max)',
+                  'float': ('float', 'real', 'decimal', 'numeric', 'money', 'smallmoney'), 'accepts_nan': False,
+                  'local_time': ('datetime2', 'datetime', 'smalldatetime'), 'zoned_time': ('datetimeoffset',), 'zoned_label': 'datetimeoffset',
+                  'add_column': 'ADD'},
+    'sqlite': {'label': 'SQLite', 'quote': ('"', '"'), 'default_schema': None, 'int': 'INTEGER', 'json': 'TEXT',
+               'float': ('REAL',), 'accepts_nan': False, 'local_time': (), 'zoned_time': (), 'zoned_label': '',
+               'add_column': 'ADD COLUMN'},
+}
+DEFAULT_PROVIDER = 'postgres'
+INTEGER_CLR_TYPES = ('int', 'long', 'short', 'byte', 'sbyte', 'ushort', 'uint', 'ulong', 'bool', 'char')
+DELETE_ACTIONS = {'Cascade': 'CASCADE', 'SetNull': 'SET NULL', 'Restrict': 'RESTRICT', 'SetDefault': 'SET DEFAULT'}
+AI_VALUE_FORMATS = {
+    'postgres': 'brojevi kao tekst ("2.1"); timestamp without time zone "YYYY-MM-DD HH:MM:SS"; with time zone "YYYY-MM-DD HH:MM:SS+00"; niz "{...}" ili "{}"',
+    'sqlserver': 'brojevi kao tekst ("2.1"); datetime2 "YYYY-MM-DD HH:MM:SS"; datetimeoffset "YYYY-MM-DD HH:MM:SS +00:00"; bit kao "0" ili "1"',
+    'sqlite': 'brojevi kao tekst ("2.1"); datum i vrijeme kao tekst "YYYY-MM-DD HH:MM:SS"; bool kao "0" ili "1"',
+}
 FILTER_CALLS = {'Where': 'Where', 'OrderBy': 'OrderBy', 'OrderByDescending': 'OrderBy', 'ThenBy': 'OrderBy',
                 'ThenByDescending': 'OrderBy', 'Join': 'Join', 'GroupJoin': 'Join', 'GroupBy': 'GroupBy'}
 MEMBER = re.compile(r'^\s*(?:\[[^\]]*\]\s*)*(?:(?:public|private|protected|internal|static|async|override|virtual|abstract|sealed|new|partial|readonly)\s+)+'
@@ -117,17 +141,41 @@ def statements(body):
 
 # ---------- EF model snapshot ----------
 
-def parse_snapshot(text):
+def detect_provider(*texts):
+    """Database provider from what EF wrote into the snapshot and migrations, not from configuration."""
+    text = '\n'.join(t for t in texts if t)
+    if re.search(r'\bNpgsql\w*Extensions\.|"Npgsql:', text):
+        return 'postgres'
+    if re.search(r'\bSqlServer\w*Extensions\.|"SqlServer:', text):
+        return 'sqlserver'
+    if re.search(r'"Sqlite:|HasColumnType\("(TEXT|INTEGER|REAL|BLOB)"\)|type: "(TEXT|INTEGER)"', text):
+        return 'sqlite'
+    identifier_length = re.search(r'"Relational:MaxIdentifierLength",\s*(\d+)', text)
+    if identifier_length and identifier_length.group(1) == '128':
+        return 'sqlserver'
+    return DEFAULT_PROVIDER
+
+
+def base_type(column_type):
+    return re.sub(r'\s*\([^)]*\)', '', column_type).strip()
+
+
+def parse_snapshot(text, provider):
     entities = {}
+    default_schema = re.search(r'\.HasDefaultSchema\("(\w+)"\)', text)
 
     def entity(name):
-        return entities.setdefault(name, {'name': name, 'table': None, 'columns': {}, 'order': [], 'key': [], 'identity': set(), 'indexes': [],
-                                          'fks': [], 'checks': [], 'owned_by': None, 'owned_nav': None, 'many': False})
+        return entities.setdefault(name, {'name': name, 'table': None, 'schema': None, 'columns': {}, 'order': [], 'key': [], 'identity': set(),
+                                          'generated': set(), 'indexes': [], 'fks': [], 'checks': [], 'owned_by': None, 'owned_nav': None,
+                                          'many': False, 'base': None, 'json': None})
 
     def walk(body, name, var):
         e = entity(name)
         for _, st in statements(body):
             s = st.strip()
+            json_column = re.search(r'\.ToJson\("(\w+)"\)', s)
+            if json_column and not re.match(rf'{var}\.Owns', s):
+                e['json'] = json_column.group(1)
             m = re.match(rf'{var}\.(Property|PrimitiveCollection)<([^>]+(?:<[^>]*>)?[^>]*)>\("(\w+)"\)', s)
             if m:
                 clr, col = m.group(2).strip(), m.group(3)
@@ -140,10 +188,16 @@ def parse_snapshot(text):
                 e['columns'][col] = {'name': cname.group(1) if cname else col, 'prop': col, 'clr': clr, 'type': ctype.group(1) if ctype else '',
                                      'nullable': nullable, 'maxLength': int(maxlen.group(1)) if maxlen else None}
                 e['order'].append(col)
+                if '.ValueGeneratedOnAdd()' in s:
+                    e['generated'].add(col)
                 continue
-            m = re.match(rf'NpgsqlPropertyBuilderExtensions\.UseIdentity\w*\({var}\.Property<[^>]+>\("(\w+)"\)\)', s)
+            m = re.match(rf'\w+PropertyBuilderExtensions\.UseIdentity\w*\({var}\.Property<[^>]+>\("(\w+)"\)\)', s)
             if m:
                 e['identity'].add(m.group(1))
+                continue
+            m = re.match(rf'{var}\.HasBaseType\("([\w.`]+)"\)', s)
+            if m:
+                e['base'] = m.group(1)
                 continue
             m = re.match(rf'{var}\.HasKey\(([^)]*)\)', s)
             if m:
@@ -152,12 +206,16 @@ def parse_snapshot(text):
             m = re.match(rf'{var}\.HasIndex\(([^)]*)\)', s)
             if m:
                 dbname = re.search(r'HasDatabaseName\("([^"]+)"\)', s)
-                e['indexes'].append({'columns': re.findall(r'"(\w+)"', m.group(1)), 'unique': '.IsUnique()' in s, 'name': dbname.group(1) if dbname else None})
+                index_filter = re.search(r'HasFilter\("((?:[^"\\]|\\.)*)"\)', s)
+                e['indexes'].append({'columns': re.findall(r'"(\w+)"', m.group(1)), 'unique': '.IsUnique()' in s, 'name': dbname.group(1) if dbname else None,
+                                     'filter': index_filter.group(1).replace('\\"', '"') if index_filter else None})
                 continue
-            m = re.match(rf'{var}\.ToTable\("(\w+)"', s)
+            m = re.match(rf'{var}\.ToTable\((?:"(\w+)"(?:,\s*"(\w+)")?)?', s)
             if m:
-                e['table'] = m.group(1)
-                e['checks'] += [{'name': a, 'sql': b.replace('\\"', '"')} for a, b in re.findall(r'HasCheckConstraint\("([^"]+)",\s*"((?:[^"\\]|\\.)*)"\)', s)]
+                if m.group(1):
+                    e['table'], e['schema'] = m.group(1), m.group(2)
+                known = {c['name'] for c in e['checks']}
+                e['checks'] += [{'name': a, 'sql': b.replace('\\"', '"')} for a, b in re.findall(r'HasCheckConstraint\("([^"]+)",\s*"((?:[^"\\]|\\.)*)"\)', s) if a not in known]
                 continue
             m = re.match(rf'{var}\.HasOne\("([\w.]+)",\s*[^)]*\)', s)
             if m:
@@ -185,20 +243,48 @@ def parse_snapshot(text):
         walk(text[brace + 1:block_end(text, brace) - 1], m.group(1), m.group(2))
 
     for name, e in entities.items():
+        root = e
+        while root['base'] and root['base'] in entities:
+            root = entities[root['base']]
+        if root is not e:
+            e['key'] = e['key'] or root['key']
+            if not e['table'] or e['table'] == root['table']:
+                e['table'], e['schema'], e['tph'] = root['table'], root['schema'], True
+        if provider == 'sqlite' and len(e['key']) == 1 and e['key'][0] in e['generated'] and e['columns'].get(e['key'][0], {}).get('type') == 'INTEGER':
+            e['identity'].add(e['key'][0])
+    for name, e in entities.items():
         if e['owned_by']:
             owner = entities.get(e['owned_by'])
             while owner and not owner['table'] and owner['owned_by']:
                 owner = entities.get(owner['owned_by'])
             owner_table = owner['table'] if owner else None
             if not e['table'] or e['table'] == owner_table:
-                e['table'] = owner_table
+                e['table'], e['schema'] = owner_table, owner['schema'] if owner else None
                 e['split'] = True
+            link = entities.get(e['owned_by'])
+            while link and not link.get('tph'):
+                link = entities.get(link['owned_by'])
+            e['tph'] = bool(link)
+
+    def inside_json(e):
+        while e:
+            if e['json']:
+                return True
+            e = entities.get(e['owned_by'])
+        return False
     tables = {}
     for name, e in entities.items():
         if not e['table']:
             continue
-        t = tables.setdefault(e['table'], {'name': e['table'], 'entities': [], 'columns': {}, 'order': [], 'key': [], 'identity': set(),
-                                           'indexes': [], 'fks': [], 'checks': []})
+        t = tables.setdefault(e['table'], {'name': e['table'], 'schema': e['schema'] or (default_schema.group(1) if default_schema else None), 'entities': [],
+                                           'columns': {}, 'order': [], 'key': [], 'identity': set(), 'indexes': [], 'fks': [], 'checks': []})
+        if e['json']:
+            if e['json'] not in t['columns']:
+                t['order'].append(e['json'])
+            t['columns'][e['json']] = {'name': e['json'], 'prop': e['owned_nav'], 'clr': e.get('clr') or name, 'type': PROVIDERS[provider]['json'],
+                                       'nullable': True, 'maxLength': None, 'entity': e['owned_by']}
+        if inside_json(e):
+            continue
         t['entities'].append(name)
         split = e.get('split')
         for prop in e['order']:
@@ -207,6 +293,8 @@ def parse_snapshot(text):
                 if prop in e['key']:
                     continue
                 col['name'] = col['name'] if col['name'] != prop else f"{e['owned_nav']}_{prop}"
+            if e.get('tph'):
+                col['nullable'] = True
             if col['name'] not in t['columns']:
                 t['order'].append(col['name'])
             col['entity'] = name
@@ -215,7 +303,7 @@ def parse_snapshot(text):
             t['key'] = [e['columns'][k]['name'] if k in e['columns'] else k for k in e['key']]
             t['identity'] |= {e['columns'][k]['name'] for k in e['identity'] if k in e['columns']}
             t['indexes'] += e['indexes']
-            t['checks'] += e['checks']
+            t['checks'] += [c for c in e['checks'] if c not in t['checks']]
         for fk in e['fks']:
             target = entities.get(fk['target'])
             if target is None or split:
@@ -251,6 +339,13 @@ def migration_ops(path):
         name = re.search(r'\bname:\s*"([^"]+)"', args)
         table = re.search(r'\btable:\s*"([^"]+)"', args)
         op = {'op': m.group(1), 'line': line, 'name': name.group(1) if name else '', 'table': table.group(1) if table else ''}
+        if op['op'] == 'RenameColumn':
+            new_name = re.search(r'\bnewName:\s*"([^"]+)"', args)
+            op['newName'] = new_name.group(1) if new_name else ''
+        if op['op'] == 'CreateIndex':
+            index_filter = re.search(r'\bfilter:\s*"((?:[^"\\]|\\.)*)"', args)
+            op['unique'] = bool(re.search(r'\bunique:\s*true', args))
+            op['filter'] = index_filter.group(1).replace('\\"', '"') if index_filter else None
         if op['op'] == 'CreateTable':
             op['table'] = op['name']
             op['cols'] = {c: offset + up[:start].count('\n') + args[:k].count('\n') + 1
@@ -575,8 +670,20 @@ class Db:
         return json.loads(r.stdout.strip() or '[]')
 
 
-def qi(n):
-    return '"' + n.replace('"', '""') + '"'
+def qi(n, provider=DEFAULT_PROVIDER):
+    left, right = PROVIDERS[provider]['quote']
+    return left + n.replace(right, right * 2) + right
+
+
+def table_sql(t):
+    """Quoted table name for SQL, with the schema only when it is not the provider's default."""
+    provider = t.get('provider', DEFAULT_PROVIDER)
+    name = qi(t.get('table') or t['name'], provider)
+    return f"{qi(t['schema'], provider)}.{name}" if t.get('schema') else name
+
+
+def real_table(name):
+    return name.split(CONTEXT_SEPARATOR)[0]
 
 
 def fmt(v):
@@ -590,32 +697,33 @@ def fmt(v):
 
 
 def db_sample(db, t):
-    exists = db.json(f"select to_regclass({repr(qi(t['name']))}) is not null as e")[0]['e']
+    source = table_sql(t)
+    exists = db.json(f"select to_regclass({repr(source)}) is not null as e")[0]['e']
     if not exists:
         return None
     cols = [c['name'] for c in t['columns']]
-    total = db.json(f'select count(*) as n from {qi(t["name"])}')[0]['n']
-    rows = db.json(f'select {", ".join(qi(c) for c in cols)} from {qi(t["name"])} limit 8') if total else []
+    total = db.json(f'select count(*) as n from {source}')[0]['n']
+    rows = db.json(f'select {", ".join(qi(c) for c in cols)} from {source} limit 8') if total else []
     out_rows = [[fmt(r.get(c)) for c in cols] for r in rows]
     stats = {}
     for c in t['columns']:
         name, ty = c['name'], c['type']
         parts = [f'count(*) filter (where {qi(name)} is null) as nulls']
-        if ty.startswith(FLOAT_TYPES):
+        if ty.startswith(PROVIDERS['postgres']['float']):
             parts += [f"count(*) filter (where {qi(name)} = 'NaN') as nan", f'count(*) filter (where {qi(name)} < 0) as neg',
                       f"min({qi(name)}) filter (where {qi(name)} <> 'NaN') as mn", f"max({qi(name)}) filter (where {qi(name)} <> 'NaN') as mx"]
         elif ty.startswith(('integer', 'bigint', 'smallint', 'timestamp', 'date', 'time')) and not ty.endswith('[]'):
             parts += [f'min({qi(name)}) as mn', f'max({qi(name)}) as mx', f'count(distinct {qi(name)}) as dist']
         elif ty.startswith(('character', 'text')):
             parts += [f'count(distinct {qi(name)}) as dist', f'max(length({qi(name)})) as maxlen']
-        s = db.json(f'select {", ".join(parts)} from {qi(t["name"])}')[0] if total else {}
-        top = db.json(f'select {qi(name)}::text as v, count(*) as n from {qi(t["name"])} group by 1 order by 2 desc, 1 limit 5') if total else []
+        s = db.json(f'select {", ".join(parts)} from {source}')[0] if total else {}
+        top = db.json(f'select {qi(name)}::text as v, count(*) as n from {source} group by 1 order by 2 desc, 1 limit 5') if total else []
         fk = next((f for f in t['foreignKeys'] if f['column'] == name), None)
         orphans = None
         if fk and total:
             tt, tc = fk['to'].split('.')
-            orphans = db.json(f'select count(*) as n from {qi(t["name"])} a where a.{qi(name)} is not null and not exists '
-                              f'(select 1 from {qi(tt)} b where b.{qi(tc)} = a.{qi(name)})')[0]['n']
+            orphans = db.json(f'select count(*) as n from {source} a where a.{qi(name)} is not null and not exists '
+                              f'(select 1 from {qi(real_table(tt))} b where b.{qi(tc)} = a.{qi(name)})')[0]['n']
         pairs = [['redova', str(total)], ['NULL', str(s.get('nulls', 0))]]
         bad = []
         if 'nan' in s:
@@ -654,7 +762,7 @@ def sample_stats(t, rows, source):
         nums = [float(v) for v in known if re.match(r'^-?\d+(\.\d+)?$', str(v))]
         pairs = [['redova', str(len(rows))], ['NULL', str(len(vals) - len(known))]]
         bad = []
-        if c['type'].startswith(FLOAT_TYPES):
+        if c['type'].startswith(PROVIDERS[t.get('provider', DEFAULT_PROVIDER)]['float']):
             nan = sum(1 for v in known if str(v) == 'NaN')
             neg = sum(1 for v in nums if v < 0)
             pairs += [['NaN', str(nan)], ['negativno', str(neg)]]
@@ -692,7 +800,8 @@ def ai_sample(t, entity_cls, carrier, cache):
     seeds = seed_sources(entity_cls, carrier)
     monday = date.today() - timedelta(days=date.today().weekday())
     seed_text = '\n\n'.join(f'{p}:\n```cs\n{txt}\n```' for p, txt in seeds) or '(nema)'
-    prompt = f"""Napravi 8 primjera redova tablice "{t['name']}" (PostgreSQL), kakvi realno nastanu kad korisnici koriste aplikaciju. Služe za code review i bit će jasno označeni kao primjer, ne kao stvarni podaci.
+    provider = t.get('provider', DEFAULT_PROVIDER)
+    prompt = f"""Napravi 8 primjera redova tablice "{t.get('table') or t['name']}" ({PROVIDERS[provider]['label']}), kakvi realno nastanu kad korisnici koriste aplikaciju. Služe za code review i bit će jasno označeni kao primjer, ne kao stvarni podaci.
 
 Stupci, ovim redom (uz to što kod piše i provjerava):
 {cols}
@@ -702,7 +811,7 @@ Primjeri iz DesignTime repozitorija (vrijednosti iz koda; iskoristi ih, a izraze
 
 Pravila:
 - Svaki red ima konkretnu vrijednost za SVAKI stupac. NOT NULL stupac nikad nije NULL (prazan niz je "{{}}"); NULL samo gdje je stupac nullable i to ima smisla. Nikad izraz iz koda.
-- Formati: brojevi kao tekst ("2.1"); timestamp without time zone "YYYY-MM-DD HH:MM:SS"; with time zone "YYYY-MM-DD HH:MM:SS+00"; niz "{{...}}" ili "{{}}"; enum kao broj koji baza sprema (vrijednost enuma pročitaj iz koda ako treba).
+- Formati: {AI_VALUE_FORMATS[provider]}; enum kao broj koji baza sprema (vrijednost enuma pročitaj iz koda ako treba).
 - Id od 1 nadalje; FK dosljedni (više redova može dijeliti isti roditeljski redak, a strani ključ na istu tablicu pokazuje na Id iz ovih redova).
 - Najviše 2 reda smiju pokazati rubni slučaj koji kod stvarno dopušta (vidi "čuva: ✕"); za njih u "notes" na hrvatskom, jednom rečenicom, napiši zašto prolazi.
 Vrati SAMO JSON, bez objašnjenja: {{"rows": [[...]], "notes": {{"<indeks reda od 0>": "razlog"}}}}"""
@@ -729,19 +838,87 @@ Vrati SAMO JSON, bez objašnjenja: {{"rows": [[...]], "notes": {{"<indeks reda o
 
 # ---------- assemble ----------
 
+def context_name(text):
+    m = DB_CONTEXT_ATTRIBUTE.search(text or '')
+    return m.group(1).split('.')[-1] if m else None
+
+
+def contexts_in(paths):
+    """One entry per DbContext whose model snapshot the PR changes, with its own migrations and provider."""
+    migrations = [p for p in paths if MIGRATION.search(p) and not p.endswith('.Designer.cs')]
+    contexts = []
+    for snapshot in (p for p in paths if SNAPSHOT.search(p)):
+        name = context_name(show(head, snapshot) or show(base, snapshot)) or snapshot.split('/')[-1].replace('ModelSnapshot.cs', '')
+        contexts.append({'name': name, 'snapshot': snapshot, 'migrations': []})
+    for m in migrations:
+        owner = context_name(show(head, m[:-len('.cs')] + '.Designer.cs'))
+        folder = m.rsplit('/', 1)[0]
+        ctx = next((c for c in contexts if c['name'] == owner), None) or next((c for c in contexts if c['snapshot'].rsplit('/', 1)[0] == folder), None)
+        if ctx:
+            ctx['migrations'].append(m)
+    for ctx in contexts:
+        ctx['provider'] = detect_provider(show(head, ctx['snapshot']) or show(base, ctx['snapshot']), *(show(head, m) for m in ctx['migrations']))
+    return migrations, contexts
+
+
+def on_delete_sql(behavior, provider):
+    action = DELETE_ACTIONS.get(behavior, 'NO ACTION')
+    return 'NO ACTION' if action == 'RESTRICT' and provider == 'sqlserver' else action
+
+
 def main():
     changed = git('diff', '--name-status', '-M', base, head).splitlines()
     paths = [l.split('\t')[-1] for l in changed]
-    migrations = [p for p in paths if MIGRATION.search(p) and not p.endswith('.Designer.cs')]
-    snapshot = next((p for p in paths if SNAPSHOT.search(p)), None)
+    migrations, contexts = contexts_in(paths)
     result = {'pr': {'head': head, 'base': base}, 'migrations': migrations, 'tables': [], 'sql': [], 'checks': [], 'db': {'source': 'none'}}
-    if not snapshot:
+    if not contexts:
         Path(out).write_text(json.dumps(result, ensure_ascii=False), encoding='utf-8')
         print('PR ne dira bazu (nema promjene ModelSnapshota)')
         return
-    tb, eb = parse_snapshot(show(base, snapshot) or '')
-    th, eh = parse_snapshot(show(head, snapshot) or '')
-    ops = [dict(o, migration=m) for m in migrations for o in migration_ops(m)]
+    result['provider'] = contexts[0]['provider']
+    result['contexts'] = [{k: c[k] for k in ('name', 'provider', 'snapshot', 'migrations')} for c in contexts]
+
+    ai_cache = json.loads(AI_CACHE.read_text(encoding='utf-8')) if AI_CACHE.exists() and '--ai-refresh' not in sys.argv else {}
+    has_postgres = any(c['provider'] == 'postgres' for c in contexts)
+    conn = db_connection() if use_db and has_postgres else None
+    exe = psql_path() if conn else None
+    db = Db(conn, exe) if conn and exe else None
+    if db:
+        try:
+            db.json('select 1 as ok')
+            result['db'] = {'source': 'db', 'name': conn['db'], 'host': conn['host'], 'secrets': conn['from']}
+        except Exception as e:
+            result['db'] = {'source': 'none', 'error': str(e)[:200]}
+            db = None
+    elif use_db:
+        result['db'] = {'source': 'none', 'error': 'redovi iz lokalne baze zasad samo za PostgreSQL' if not has_postgres else
+                        'nema connection stringa u user-secrets' if not conn else 'psql nije pronađen'}
+
+    for ctx in contexts:
+        add_context(result, ctx, len(contexts) > 1, db, ai_cache)
+    if ai_cache:
+        AI_CACHE.write_text(json.dumps(ai_cache, ensure_ascii=False, indent=1), encoding='utf-8')
+    Path(out).write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding='utf-8')
+    print(f"tablica={len(result['tables'])} ({', '.join(t['name'] + ':' + t['status'] for t in result['tables'])}) sql={len(result['sql'])} provjera={len(result['checks'])} baza={result['db'].get('source')}")
+
+
+def add_context(result, ctx, qualify, db, ai_cache):
+    """Tables, SQL and checks of one DbContext; with several contexts in the PR each table name carries its context."""
+    provider = ctx['provider']
+    spec = PROVIDERS[provider]
+    tb, eb = parse_snapshot(show(base, ctx['snapshot']) or '', provider)
+    th, eh = parse_snapshot(show(head, ctx['snapshot']) or '', provider)
+    ops = [dict(o, migration=m) for m in ctx['migrations'] for o in migration_ops(m)]
+    tables, sql, checks = [], [], []
+
+    def label(table_name):
+        return f"{table_name}{CONTEXT_SEPARATOR}{ctx['name']}" if qualify else table_name
+
+    def q(n):
+        return qi(n, provider)
+
+    def checks_column(column, check_sql):
+        return re.search(rf'"{column}"' if provider == 'postgres' else rf'(?<!\w){re.escape(column)}(?!\w)', check_sql)
 
     def col_sig(c):
         return (c['type'], c['nullable'], c['maxLength'])
@@ -763,23 +940,9 @@ def main():
     for n in touched:
         model = th.get(n) or tb.get(n)
         for fk in model['fks']:
-            if fk['targetTable'] not in touched and fk['targetTable'] not in neighbors:
+            if fk['targetTable'] and fk['targetTable'] not in touched and fk['targetTable'] not in neighbors:
                 neighbors.append(fk['targetTable'])
     order = sorted(touched, key=lambda n: ({'added': 0, 'changed': 1, 'dropped': 2}[statuses[n]], n)) + neighbors
-
-    ai_cache = json.loads(AI_CACHE.read_text(encoding='utf-8')) if AI_CACHE.exists() and '--ai-refresh' not in sys.argv else {}
-    conn = db_connection() if use_db else None
-    exe = psql_path() if conn else None
-    db = Db(conn, exe) if conn and exe else None
-    if db:
-        try:
-            db.json('select 1 as ok')
-            result['db'] = {'source': 'db', 'name': conn['db'], 'host': conn['host'], 'secrets': conn['from']}
-        except Exception as e:
-            result['db'] = {'source': 'none', 'error': str(e)[:200]}
-            db = None
-    elif use_db:
-        result['db'] = {'source': 'none', 'error': 'nema connection stringa u user-secrets' if not conn else 'psql nije pronađen'}
 
     for name in order:
         st = statuses.get(name, 'unchanged')
@@ -803,14 +966,16 @@ def main():
             for c in fk['columns']:
                 fk_of[c] = fk
         idx = [i for i in model['indexes']]
-        table = {'name': name, 'status': st, 'entity': entity_file, 'config': config, 'class': cls_name,
+        table = {'name': label(name), 'table': name, 'context': ctx['name'], 'provider': provider,
+                 'schema': model['schema'] if model['schema'] != spec['default_schema'] else None,
+                 'status': st, 'entity': entity_file, 'config': config, 'class': cls_name,
                  'indexes': [', '.join(i['columns']) for i in idx], 'uniqueIndexes': [', '.join(i['columns']) for i in idx if i['unique']], 'indexNames': {', '.join(i['columns']): i['name'] or f"IX_{name}_{'_'.join(i['columns'])}" for i in idx},
                  'foreignKeys': [], 'flags': [], 'columns': [], 'checksSql': [c['sql'] for c in model['checks']]}
         for fk in model['fks']:
             note = 'self-referencija: brisanje roditeljskog reda briše i redove koji na njega pokazuju' if fk['targetTable'] == name and fk['onDelete'] == 'Cascade' else \
                    'owned tip: redovi pripadaju vlasniku' if fk.get('owner') else ''
             for c, tc in zip(fk['columns'], fk['targetColumns'] or ['Id']):
-                table['foreignKeys'].append({'column': c, 'to': f"{fk['targetTable']}.{tc}", 'onDelete': fk['onDelete'], 'note': note})
+                table['foreignKeys'].append({'column': c, 'to': f"{label(fk['targetTable'])}.{tc}", 'onDelete': fk['onDelete'], 'note': note})
         if emodel.get('owned_by'):
             owner = (eb if st == 'dropped' else eh).get(emodel['owned_by'], {})
             table['was'] = f"owned tip {cls_name} ({'OwnsMany' if emodel.get('many') else 'OwnsOne'} '{emodel['owned_nav']}' na {owner.get('name', emodel['owned_by']).split('.')[-1].split('#')[0]})"
@@ -820,16 +985,16 @@ def main():
             if not data_moved:
                 table['flags'].append({'label': 'drop bez migracije podataka', 'level': 'danger', 'file': drop['migration'], 'line': drop['line'],
                                        'why': f"Up() na liniji {drop['line']} briše tablicu, a prije toga nema Sql(...) ni InsertData koji bi prenio postojeće redove."})
-            others = [n for n in touched if statuses[n] == 'added' and any(o['op'] == 'CreateTable' and o['table'] == n and o['migration'] == drop['migration'] for o in ops)]
+            others = [label(n) for n in touched if statuses[n] == 'added' and any(o['op'] == 'CreateTable' and o['table'] == n and o['migration'] == drop['migration'] for o in ops)]
             if others:
                 table['replacedBy'] = ', '.join(others)
         if st == 'unchanged':
             table['role'] = 'susjed (FK cilj)'
-            incoming = [f"{n}.{c}" for n in touched for fk in (th.get(n) or tb.get(n))['fks'] if fk['targetTable'] == name for c in fk['columns']]
+            incoming = [f"{label(n)}.{c}" for n in touched for fk in (th.get(n) or tb.get(n))['fks'] if fk['targetTable'] == name for c in fk['columns']]
             table['note'] = 'Na nju pokazuju: ' + ' · '.join(incoming) if incoming else ''
-            table['columns'] = [{'name': k, 'type': model['columns'][k]['type'] if k in model['columns'] else 'integer', 'nullable': False, 'key': 'PK', 'maxLength': None,
+            table['columns'] = [{'name': k, 'type': model['columns'][k]['type'] if k in model['columns'] else spec['int'], 'nullable': False, 'key': 'PK', 'maxLength': None,
                                  'writes': [], 'reads': [], 'guards': [], 'filters': [], 'flags': []} for k in model['key']]
-            result['tables'].append(table)
+            tables.append(table)
             continue
 
         props = [model['columns'][c]['prop'] for c in model['order'] if model['columns'][c].get('entity') == root_entity]
@@ -838,7 +1003,8 @@ def main():
             dbset = re.search(rf'DbSet<\s*{cls_name}\s*>\s+(\w+)', '\n'.join(show(head, p) or '' for p in sorted(grep_files('DbSet') & grep_files(cls_name))))
             if dbset:
                 code = column_code(cls_name, entity_file, props, dbset.group(1))
-        has_tz = [c for c in model['order'] if model['columns'][c]['type'] == 'timestamp with time zone']
+        has_tz = [c for c in model['order'] if base_type(model['columns'][c]['type']) in spec['zoned_time']]
+        renames = {o['newName']: o for o in ops if o['op'] == 'RenameColumn' and o['table'] == name}
         carriers = {}
         for cname in model['order']:
             c = model['columns'][cname]
@@ -848,20 +1014,27 @@ def main():
                 key.append('PK' + (' identity' if cname in model['identity'] else ''))
             if cname in fk_of:
                 key.append('FK' + (' (self)' if fk_of[cname]['targetTable'] == name else ''))
-            col = {'name': cname, 'type': c['type'] + (' (enum)' if c['clr'].rstrip('?') not in ('int', 'long', 'short') and c['type'] == 'integer' else ''),
+            col = {'name': cname, 'type': c['type'] + (' (enum)' if c['clr'].rstrip('?') not in INTEGER_CLR_TYPES and c['type'] == spec['int'] else ''),
                    'nullable': c['nullable'], 'key': ' '.join(key) or '—', 'maxLength': c['maxLength'],
                    'writes': list(info.get('writes', [])), 'reads': list(info.get('reads', [])), 'filters': list(info.get('filters', [])),
                    'guards': [], 'flags': [], 'status': 'same'}
-            if c['type'] == 'integer' and c['clr'].rstrip('?') == 'int' and entity_file:
+            if c['type'] == spec['int'] and c['clr'].rstrip('?') == 'int' and entity_file:
                 etext = show(head, entity_file) or ''
                 pt = re.search(rf'\bpublic\s+([A-Z]\w*)\??\s+{c["prop"]}\s*\{{', etext)
                 if pt and pt.group(1) not in ('Int32',):
-                    col['type'] = 'integer (enum)'
+                    col['type'] = f"{spec['int']} (enum)"
             if before and st == 'changed':
                 old = before['columns'].get(cname)
                 col['status'] = 'added' if old is None else 'changed' if col_sig(old) != col_sig(c) else 'same'
                 if old and col['status'] == 'changed':
                     col['before'] = {'type': old['type'], 'nullable': old['nullable'], 'maxLength': old['maxLength']}
+                rename = renames.get(cname)
+                if old is None and rename and rename['name'] in before['columns']:
+                    old = before['columns'][rename['name']]
+                    col['status'] = 'changed'
+                    col['before'] = {'name': rename['name'], 'type': old['type'], 'nullable': old['nullable'], 'maxLength': old['maxLength']}
+                    col['flags'].append({'label': 'preimenovan', 'level': 'info', 'file': rename['migration'], 'line': rename['line'],
+                                         'why': f"Up() preimenuje {rename['name']} u {cname}; postojeće vrijednosti ostaju u stupcu."})
             for cr in info.get('carriers', []):
                 found = carrier_writes(cr['type'], cr['param'], entity_file)
                 col['writes'] += [{k: v for k, v in w.items() if k not in ('expr', 'via', 'text')} for w in found]
@@ -869,14 +1042,15 @@ def main():
                 carriers.setdefault(cr['type'], {'type': cr['type'], 'map': {}})['map'][cname] = cr['param']
             col['guards'] += info.get('guards', [])
             if st != 'dropped':
-                if c['type'].startswith(FLOAT_TYPES) and cname not in fk_of and not any(re.search(rf'"{cname}"', s) for s in table['checksSql']):
-                    col['flags'].append({'label': 'nema CHECK', 'level': 'warn', 'why': f"Postgres {c['type']} prima NaN i negativne vrijednosti, a tablica nema CHECK ograničenje za ovaj stupac."})
+                if c['type'].startswith(spec['float']) and cname not in fk_of and not any(checks_column(cname, s) for s in table['checksSql']):
+                    accepted = 'NaN i negativne vrijednosti' if spec['accepts_nan'] else 'negativne vrijednosti'
+                    col['flags'].append({'label': 'nema CHECK', 'level': 'warn', 'why': f"{spec['label']} {c['type']} prima {accepted}, a tablica nema CHECK ograničenje za ovaj stupac."})
                 if re.search(r'Id$', cname) and cname not in model['key'] and cname not in fk_of:
                     col['flags'].append({'label': 'nema FK', 'level': 'warn', 'why': 'Ime stupca kaže da pokazuje na red druge tablice, ali u modelu nema stranog ključa.'})
-                if c['type'].startswith('timestamp without time zone'):
+                if base_type(c['type']).removesuffix('[]') in spec['local_time']:
                     why = 'Vrijednost se sprema bez vremenske zone i čita kao lokalno vrijeme.'
                     if has_tz:
-                        why += f" U istoj tablici {', '.join(has_tz)} je with time zone."
+                        why += f" U istoj tablici {', '.join(has_tz)} je {spec['zoned_label']}."
                     col['flags'].append({'label': 'lokalno vrijeme, bez tz', 'level': 'info', 'why': why})
             db_g = []
             if not c['nullable']:
@@ -887,14 +1061,14 @@ def main():
                 db_g.append({'layer': 'db', 'ok': True, 'text': f"FK → {fk_of[cname]['targetTable']}"})
             if cname in model['key']:
                 db_g.append({'layer': 'db', 'ok': True, 'text': 'primarni ključ'})
-            db_g += [{'layer': 'db', 'ok': True, 'text': f'CHECK {short(s, 40)}'} for s in table['checksSql'] if re.search(rf'"{cname}"', s)]
+            db_g += [{'layer': 'db', 'ok': True, 'text': f'CHECK {short(s, 40)}'} for s in table['checksSql'] if checks_column(cname, s)]
             db_g += [{'layer': 'db', 'ok': False, 'text': f['label'], 'why': f['why']} for f in col['flags'] if f['label'] in ('nema CHECK', 'nema FK')]
             domain_writes = [w for w in col['writes'] if w['layer'] == 'domain']
             if domain_writes and not any(g['layer'] == 'domain' for g in col['guards']) and cname not in model['key']:
                 col['guards'].append({'layer': 'domain', 'ok': False, 'text': 'nema provjere u domeni', 'file': domain_writes[0]['file'], 'line': domain_writes[0]['line']})
             col['guards'] = db_g + col['guards']
             ddl_op = next((o for o in ops if o['op'] == 'CreateTable' and o['table'] == name and cname in o.get('cols', {})), None) or \
-                next((o for o in ops if o['op'] in ('AddColumn', 'AlterColumn') and o['table'] == name and o['name'] == cname), None)
+                next((o for o in ops if o['op'] in ('AddColumn', 'AlterColumn', 'RenameColumn') and o['table'] == name and o.get('newName', o['name']) == cname), None)
             if ddl_op:
                 col['ddlLine'] = ddl_op['cols'][cname] if ddl_op['op'] == 'CreateTable' else ddl_op['line']
                 col['ddlFile'] = ddl_op.get('migration')
@@ -905,17 +1079,18 @@ def main():
                     col['config'] = {'file': config, 'line': ctext[:cm.start()].count('\n') + 1}
             table['columns'].append(col)
         if st == 'changed':
+            renamed_away = {o['name'] for o in renames.values()}
             for cname in before['order']:
-                if cname not in model['columns']:
+                if cname not in model['columns'] and cname not in renamed_away:
                     old = before['columns'][cname]
                     table['columns'].append({'name': cname, 'type': old['type'], 'nullable': old['nullable'], 'key': '—', 'maxLength': old['maxLength'],
                                              'writes': [], 'reads': [], 'filters': [], 'guards': [], 'flags': [], 'status': 'dropped'})
         sample = None
-        if db:
+        if db and provider == 'postgres':
             try:
                 sample = db_sample(db, table)
             except Exception as e:
-                result['db'].setdefault('errors', []).append(f'{name}: {str(e)[:160]}')
+                result['db'].setdefault('errors', []).append(f'{label(name)}: {str(e)[:160]}')
         if sample is None and st != 'dropped' and use_ai:
             carrier = max(carriers.values(), key=lambda x: len(x['map']), default=None)
             sample = ai_sample(table, cls_name, carrier, ai_cache)
@@ -926,72 +1101,88 @@ def main():
                 if col:
                     col['sample'] = s
             table['sampleRows'] = sample
-        result['tables'].append(table)
+        tables.append(table)
 
-    by = {t['name']: t for t in result['tables']}
+    by = {t['table']: t for t in tables}
+
+    def table_ref(table_name):
+        return table_sql(by[table_name]) if table_name in by else q(table_name)
+
     for o in ops:
-        key = None
         if o['op'] == 'DropTable':
             t = by.get(o['table'])
-            result['sql'].append({'t': f'DROP TABLE {qi(o["table"])};', 'key': f"{o['table']}.{t['columns'][0]['name']}" if t and t['columns'] else None,
-                                  'lv': 'danger' if t and t['flags'] else None, 'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
+            sql.append({'t': f'DROP TABLE {table_ref(o["table"])};', 'key': f"{t['name']}.{t['columns'][0]['name']}" if t and t['columns'] else None,
+                        'lv': 'danger' if t and t['flags'] else None, 'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
         elif o['op'] == 'CreateTable' and o['table'] in by:
             t = by[o['table']]
-            result['sql'].append({'t': f'CREATE TABLE {qi(t["name"])} (', 'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
+            sql.append({'t': f'CREATE TABLE {table_sql(t)} (', 'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
             for c in t['columns']:
                 sqlt = c['type'].replace(' (enum)', '')
-                result['sql'].append({'t': f"  {qi(c['name'])} {sqlt}{'' if c['nullable'] else ' NOT NULL'},", 'key': f"{t['name']}.{c['name']}",
-                                      'lv': c['flags'][0]['level'] if c['flags'] else None, 'cm': f"-- {c['key']}" if c['key'] != '—' else '-- enum' if '(enum)' in c['type'] else '',
-                                      'line': c.get('ddlLine'), 'file': o['migration']})
+                sql.append({'t': f"  {q(c['name'])} {sqlt}{'' if c['nullable'] else ' NOT NULL'},", 'key': f"{t['name']}.{c['name']}",
+                            'lv': c['flags'][0]['level'] if c['flags'] else None, 'cm': f"-- {c['key']}" if c['key'] != '—' else '-- enum' if '(enum)' in c['type'] else '',
+                            'line': c.get('ddlLine'), 'file': o['migration']})
             pk = [c['name'] for c in t['columns'] if c['key'].startswith('PK')]
             if pk:
-                result['sql'].append({'t': f"  CONSTRAINT {qi('PK_' + t['name'])} PRIMARY KEY ({', '.join(map(qi, pk))}){',' if t['foreignKeys'] else ''}", 'key': f"{t['name']}.{pk[0]}"})
+                sql.append({'t': f"  CONSTRAINT {q('PK_' + t['table'])} PRIMARY KEY ({', '.join(map(q, pk))}){',' if t['foreignKeys'] else ''}", 'key': f"{t['name']}.{pk[0]}"})
             for i, f in enumerate(t['foreignKeys']):
                 tt, tc = f['to'].split('.')
-                result['sql'].append({'t': f"  CONSTRAINT {qi(f'FK_{t['name']}_{tt}_{f['column']}')}\n    FOREIGN KEY ({qi(f['column'])}) REFERENCES {qi(tt)} ({qi(tc)})\n    ON DELETE {re.sub(r'(?<!^)(?=[A-Z])', ' ', f['onDelete']).upper()}{',' if i < len(t['foreignKeys']) - 1 else ''}",
-                                      'key': f"{t['name']}.{f['column']}"})
-            result['sql'].append({'t': ');'})
+                tt = real_table(tt)
+                sql.append({'t': f"  CONSTRAINT {q(f'FK_{t['table']}_{tt}_{f['column']}')}\n    FOREIGN KEY ({q(f['column'])}) REFERENCES {table_ref(tt)} ({q(tc)})\n    ON DELETE {on_delete_sql(f['onDelete'], provider)}{',' if i < len(t['foreignKeys']) - 1 else ''}",
+                            'key': f"{t['name']}.{f['column']}"})
+            sql.append({'t': ');'})
         elif o['op'] == 'CreateIndex' and o['table'] in by:
             t = by[o['table']]
             ixcols = next((k for k, v in t['indexNames'].items() if v == o['name']), None) or o['name'].split(f"IX_{o['table']}_", 1)[-1]
             first = ixcols.split(', ')[0]
-            result['sql'].append({'t': f"CREATE INDEX {qi(o['name'])}\n  ON {qi(o['table'])} ({', '.join(map(qi, ixcols.split(', ')))});", 'key': f"{o['table']}.{first}",
-                                  'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
+            where = f"\n  WHERE {o['filter']}" if o.get('filter') else ''
+            sql.append({'t': f"CREATE {'UNIQUE ' if o.get('unique') else ''}INDEX {q(o['name'])}\n  ON {table_sql(t)} ({', '.join(map(q, ixcols.split(', ')))}){where};", 'key': f"{t['name']}.{first}",
+                        'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
         elif o['op'] in ('AddColumn', 'DropColumn', 'AlterColumn', 'RenameColumn') and o['table'] in by:
             t = by[o['table']]
-            c = next((x for x in t['columns'] if x['name'] == o['name']), None)
-            verb = {'AddColumn': 'ADD COLUMN', 'DropColumn': 'DROP COLUMN', 'AlterColumn': 'ALTER COLUMN', 'RenameColumn': 'RENAME COLUMN'}[o['op']]
-            detail = f" {c['type'].replace(' (enum)', '')}{'' if c['nullable'] else ' NOT NULL'}" if c and o['op'] != 'DropColumn' and o['op'] != 'RenameColumn' else ''
-            result['sql'].append({'t': f"ALTER TABLE {qi(o['table'])} {verb} {qi(o['name'])}{detail};", 'key': f"{o['table']}.{o['name']}", 'cm': f"-- Up():{o['line']}",
-                                  'line': o['line'], 'file': o['migration']})
+            column = o.get('newName') or o['name']
+            c = next((x for x in t['columns'] if x['name'] == column), None)
+            ts = table_sql(t)
+            if o['op'] == 'RenameColumn':
+                text = f"EXEC sp_rename N'{ts}.{q(o['name'])}', N'{column}', N'COLUMN';" if provider == 'sqlserver' else f"ALTER TABLE {ts} RENAME COLUMN {q(o['name'])} TO {q(column)};"
+            elif o['op'] == 'DropColumn' or not c:
+                text = f"ALTER TABLE {ts} {'DROP COLUMN' if o['op'] == 'DropColumn' else spec['add_column'] if o['op'] == 'AddColumn' else 'ALTER COLUMN'} {q(column)};"
+            else:
+                nullability = ' NOT NULL' if not c['nullable'] else ' NULL' if provider == 'sqlserver' and o['op'] == 'AlterColumn' else ''
+                verb = spec['add_column'] if o['op'] == 'AddColumn' else 'ALTER COLUMN'
+                text = f"ALTER TABLE {ts} {verb} {q(column)} {c['type'].replace(' (enum)', '')}{nullability};"
+            sql.append({'t': text, 'key': f"{t['name']}.{column}", 'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
         elif o['op'] in ('Sql', 'InsertData', 'UpdateData', 'DeleteData', 'AddForeignKey', 'DropForeignKey', 'DropIndex', 'RenameTable', 'AddCheckConstraint', 'DropCheckConstraint'):
-            result['sql'].append({'t': f"-- {o['op']}({o['name'] or o['table']})", 'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
-        if result['sql'] and result['sql'][-1].get('t') != '' and o['op'] in ('DropTable', 'CreateTable'):
-            result['sql'].append({'t': ''})
+            sql.append({'t': f"-- {o['op']}({o['name'] or o['table']})", 'cm': f"-- Up():{o['line']}", 'line': o['line'], 'file': o['migration']})
+        if sql and sql[-1].get('t') != '' and o['op'] in ('DropTable', 'CreateTable'):
+            sql.append({'t': ''})
 
-    for t in result['tables']:
+    for t in tables:
+        ts = table_sql(t)
         if t['status'] == 'dropped' and t['flags']:
             first = t['columns'][0]['name'] if t['columns'] else ''
-            result['checks'].append({'id': f"drop:{t['name']}", 'lv': 'danger', 'when': 'prije deploya', 'title': f"Ima li redova u {t['name']} koji će nestati?",
-                                     'col': f"{t['name']}.{first}", 'sql': f"SELECT COUNT(*) AS redova\nFROM {qi(t['name'])};", 'note': t['flags'][0]['why'],
-                                     'local': (t.get('sampleRows') or {}).get('total') if (t.get('sampleRows') or {}).get('source') == 'db' else None})
+            checks.append({'id': f"drop:{t['name']}", 'lv': 'danger', 'when': 'prije deploya', 'title': f"Ima li redova u {t['name']} koji će nestati?",
+                           'col': f"{t['name']}.{first}", 'sql': f"SELECT COUNT(*) AS redova\nFROM {ts};", 'note': t['flags'][0]['why'],
+                           'local': (t.get('sampleRows') or {}).get('total') if (t.get('sampleRows') or {}).get('source') == 'db' else None})
         if t['status'] in ('added', 'changed'):
             for c in t['columns']:
                 if any(f['label'] == 'nema CHECK' for f in c['flags']):
                     ident = [x['name'] for x in t['columns'] if x['key'].startswith('PK')][:1]
-                    result['checks'].append({'id': f"nan:{t['name']}.{c['name']}", 'lv': 'warn', 'when': 'nakon deploya', 'title': f"{c['name']}: NaN ili negativno",
-                                             'col': f"{t['name']}.{c['name']}", 'sql': f"SELECT {', '.join(map(qi, ident + [c['name']]))}\nFROM {qi(t['name'])}\nWHERE {qi(c['name'])} = 'NaN' OR {qi(c['name'])} < 0;",
-                                             'note': next(f['why'] for f in c['flags'] if f['label'] == 'nema CHECK')})
+                    bad = f"{q(c['name'])} = 'NaN' OR {q(c['name'])} < 0" if spec['accepts_nan'] else f"{q(c['name'])} < 0"
+                    checks.append({'id': f"nan:{t['name']}.{c['name']}", 'lv': 'warn', 'when': 'nakon deploya',
+                                   'title': f"{c['name']}: {'NaN ili negativno' if spec['accepts_nan'] else 'negativno'}",
+                                   'col': f"{t['name']}.{c['name']}", 'sql': f"SELECT {', '.join(map(q, ident + [c['name']]))}\nFROM {ts}\nWHERE {bad};",
+                                   'note': next(f['why'] for f in c['flags'] if f['label'] == 'nema CHECK')})
             nofk = [c['name'] for c in t['columns'] if any(f['label'] == 'nema FK' for f in c['flags'])]
             if nofk:
-                result['checks'].append({'id': f"fk:{t['name']}", 'lv': 'warn', 'when': 'nakon deploya', 'title': f"{' / '.join(nofk)} bez FK",
-                                         'col': f"{t['name']}.{nofk[0]}", 'sql': f"SELECT DISTINCT {', '.join(map(qi, nofk))}\nFROM {qi(t['name'])}\nWHERE " + '\n   OR '.join(f'{qi(c)} IS NOT NULL' for c in nofk) + ';',
-                                         'note': 'Ime stupca kaže da pokazuje na red druge tablice, ali u modelu nema stranog ključa. Usporedi rezultat s tablicom na koju bi trebao pokazivati.',
-                                         'cols': [f"{t['name']}.{c}" for c in nofk]})
-    if ai_cache:
-        AI_CACHE.write_text(json.dumps(ai_cache, ensure_ascii=False, indent=1), encoding='utf-8')
-    Path(out).write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding='utf-8')
-    print(f"tablica={len(result['tables'])} ({', '.join(t['name'] + ':' + t['status'] for t in result['tables'])}) sql={len(result['sql'])} provjera={len(result['checks'])} baza={result['db'].get('source')}")
+                checks.append({'id': f"fk:{t['name']}", 'lv': 'warn', 'when': 'nakon deploya', 'title': f"{' / '.join(nofk)} bez FK",
+                               'col': f"{t['name']}.{nofk[0]}", 'sql': f"SELECT DISTINCT {', '.join(map(q, nofk))}\nFROM {ts}\nWHERE " + '\n   OR '.join(f'{q(c)} IS NOT NULL' for c in nofk) + ';',
+                               'note': 'Ime stupca kaže da pokazuje na red druge tablice, ali u modelu nema stranog ključa. Usporedi rezultat s tablicom na koju bi trebao pokazivati.',
+                               'cols': [f"{t['name']}.{c}" for c in nofk]})
+    if qualify and sql:
+        sql.insert(0, {'t': f"-- {ctx['name']} ({spec['label']})"})
+    result['tables'] += tables
+    result['sql'] += sql
+    result['checks'] += checks
 
 
 main()
