@@ -18,7 +18,7 @@ Putanje u ovom fajlu kreću od foldera skilla, `$HOME/.claude/skills/pr-review/`
 ## Postavi → složi config.local.ps1
 
 1. Ako `config.local.ps1` već postoji, pročitaj ga: dodaješ repoe koji fale, postojeće ne diraš.
-2. Pitaj u kojem folderu korisnik drži projekte. U njemu, do dvije razine dubine, nađi git repoe čiji `origin` vodi na
+2. Pitaj u kojem folderu korisnik drži projekte i pričekaj odgovor; folder ne pogađaj. U njemu, do dvije razine dubine, nađi git repoe čiji `origin` vodi na
    `github.com` ili `bitbucket.org`, i iz adrese izvuci ime repoa te `owner` (GitHub) ili `workspace` (Bitbucket).
    Azure DevOps prepoznaješ po `dev.azure.com`, `*.visualstudio.com` ili `/_git/` u adresi (server u firmi):
    `https://<host>/<put>/<project>/_git/<repo>` daje `azureUrl = https://<host>/<put>` (organizacija ili kolekcija),

@@ -17,8 +17,9 @@ Before `install.ps1` has run, this skill is not linked yet. On a fresh clone the
 
 Go through the `missing` lines first, then the `note` lines, one at a time. For each, say in one sentence what it is for and offer the fix:
 
-- **A tool** (git, gh, Python, .NET SDK): give the `winget install` command and run it only after a yes. If the user does not need what the tool is for (for example Python only for `/self-improve history`), skipping it is fine.
-- **gh not logged in**: the user runs `gh auth login` in their own terminal; it opens the browser.
+- **A tool** (git, PowerShell 7, gh, Python, .NET SDK): give the `winget install` command and run it only after a yes. Without winget (Windows Sandbox, LTSC and some company images have none), use each vendor's own installer: the zip from the PowerShell releases for pwsh, `dotnet-install.ps1` for .NET, the python.org installer for Python, the zip or MSI from the GitHub CLI releases for gh; also only after a yes. Prefer per-user installs that need no admin, and add their folders to the user's Path. If the user does not need what the tool is for (for example Python only for `/self-improve history`), skipping it is fine.
+- **After installing**: this session still has the old Path, so before running `check-setup.ps1` again reload it: `$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')`.
+- **gh not logged in**: start `gh auth login --web --hostname github.com --git-protocol https` yourself in the background, read the one-time code from its output, and tell the user to open https://github.com/login/device, enter the code and approve. Do not hand the user a command to type: a `!` command in Claude Code runs in bash, not PowerShell, and long paths are hard to copy.
 - **pr-review has no repo list**: do the `postavi` step of the `pr-review` skill.
 - **Bitbucket variables or an Azure DevOps PAT variable**: as in `pr-review` `postavi`. The user sets tokens in their own terminal, never in the chat.
 - **A repo without a local clone**: offer `git clone` into the folder the config names, or fix the path in the config.
@@ -35,7 +36,9 @@ If `AGENTS.local.md` still holds only the template, ask three short questions an
 
 ## 4. Check again
 
-Run `check-setup.ps1` once more and report: what is `ok` now, what is still missing and why it was left (skipped by the user, needs something only they can do). Nothing else.
+Run `check-setup.ps1` once more (with the reloaded Path) and report: what is `ok` now, what is still missing and why it was left (skipped by the user, needs something only they can do).
+
+Then tell the user to close this Claude Code session and start a new one in any folder: skills linked during this session, such as `/pr-review` and `/pr-walkthrough`, appear only in new sessions, and new terminals also see the installed tools.
 
 ## Never
 

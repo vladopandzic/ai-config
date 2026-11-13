@@ -65,6 +65,9 @@ function Test-Tools
     if (Test-Command 'git') { Write-Status -Status 'ok' -Message 'git' }
     else { Write-Status -Status 'missing' -Message 'git: everything needs it (https://git-scm.com)' }
 
+    if (Test-Command 'pwsh') { Write-Status -Status 'ok' -Message 'pwsh (PowerShell 7)' }
+    else { Write-Status -Status 'missing' -Message 'pwsh (PowerShell 7): pr-review and pr-walkthrough run their scripts with it (winget install Microsoft.PowerShell)' }
+
     if (-not (Test-Command 'gh'))
     {
         Write-Status -Status 'missing' -Message 'gh (GitHub CLI): pr-review needs it for GitHub repos (winget install GitHub.cli)'
