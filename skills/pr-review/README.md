@@ -33,7 +33,16 @@ draft komentari. Bugovi se dokazuju pokrenutim testom. Ništa ne ide na PR bez t
    [Environment]::SetEnvironmentVariable('AZURE_DEVOPS_EXAMPLE_PAT', '<token>', 'User')
    ```
    Isto vrijedi za cloud (`https://dev.azure.com/<org>`) i za Azure DevOps Server (`https://<server>/<kolekcija>`). Diff PR-a
-   skripta računa lokalno, iz grana koje fetcha u klon.
+   skripta računa lokalno, iz grana koje fetcha u klon; fetch šalje isti PAT, pa ne treba Windows prijava na server.
+   Ako `git clone` na Azure DevOps Serveru javi "Authentication failed" (server nudi NTLM, a računalo nije u domeni),
+   kloniraj s PAT-om upisanim u skriveni upit, bez spremanja:
+   ```powershell
+   $s = Read-Host 'PAT' -AsSecureString
+   $t = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
+   $b = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$t"))
+   git -c core.longpaths=true -c "http.extraHeader=Authorization: Basic $b" clone <adresa repoa> <folder>
+   Remove-Variable s, t, b
+   ```
 7. Provjeri:
    ```
    pwsh -NoProfile -File "$HOME/.claude/skills/pr-review/scripts/pr-harvest.ps1" -List -Pretty

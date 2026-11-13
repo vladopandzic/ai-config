@@ -134,6 +134,14 @@ function Get-AzureHeaders {
   return @{ Authorization = "Basic $credentials" }
 }
 
+function Get-GitAuthArguments {
+  param($RepoConfig)
+  if ($RepoConfig.host -ne 'azure') { return @() }
+  $headers = Get-AzureHeaders $RepoConfig.tokenVariable
+  if (-not $headers) { return @() }
+  return @('-c', "http.extraHeader=Authorization: $($headers.Authorization)")
+}
+
 function Get-AzureRepositoryApi {
   param($RepoConfig)
   $project = [uri]::EscapeDataString($RepoConfig.project)
@@ -191,10 +199,11 @@ function Get-AzureLocalDiff {
   $repoPath = $RepoConfig.localPath
   $headSha = $PullRequest.lastMergeSourceCommit.commitId
   $targetSha = $PullRequest.lastMergeTargetCommit.commitId
-  git -C $repoPath fetch origin (Get-AzureFetchSpec $PullRequest $Pr) (Get-AzureBranchName $PullRequest.targetRefName) --quiet 2>$null | Out-Null
+  $authArguments = Get-GitAuthArguments $RepoConfig
+  git @authArguments -C $repoPath fetch origin (Get-AzureFetchSpec $PullRequest $Pr) (Get-AzureBranchName $PullRequest.targetRefName) --quiet 2>$null | Out-Null
   foreach ($sha in $headSha, $targetSha) {
     git -C $repoPath cat-file -e "$sha^{commit}" 2>$null
-    if ($LASTEXITCODE -ne 0) { git -C $repoPath fetch origin $sha --quiet 2>$null | Out-Null }
+    if ($LASTEXITCODE -ne 0) { git @authArguments -C $repoPath fetch origin $sha --quiet 2>$null | Out-Null }
   }
   $mergeBase = git -C $repoPath merge-base $targetSha $headSha 2>$null
   if (-not $mergeBase) { return @() }

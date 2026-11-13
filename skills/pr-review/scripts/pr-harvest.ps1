@@ -190,9 +190,10 @@ function New-PreviousReview($myLastAt, $baseSha, $baseSource, $headSha, $fetchSp
   if (-not $myLastAt -and -not $baseSha) { $result.deltaReason = 'first review (no earlier comments/approval by you)'; return $result }
   if (-not $baseSha) { $result.deltaReason = 'could not resolve the head you reviewed'; return $result }
   $repoPath = $cfg.localPath
-  git -C $repoPath fetch origin $fetchSpec $destBranch --quiet 2>$null | Out-Null
+  $authArguments = Get-GitAuthArguments $cfg
+  git @authArguments -C $repoPath fetch origin $fetchSpec $destBranch --quiet 2>$null | Out-Null
   git -C $repoPath cat-file -e "$baseSha^{commit}" 2>$null
-  if ($LASTEXITCODE -ne 0) { git -C $repoPath fetch origin $baseSha --quiet 2>$null | Out-Null; git -C $repoPath cat-file -e "$baseSha^{commit}" 2>$null }
+  if ($LASTEXITCODE -ne 0) { git @authArguments -C $repoPath fetch origin $baseSha --quiet 2>$null | Out-Null; git -C $repoPath cat-file -e "$baseSha^{commit}" 2>$null }
   if ($LASTEXITCODE -ne 0) { $result.deltaReason = "reviewed head $baseSha is no longer fetchable (force-push + gc?)"; return $result }
 
   # Only files this PR actually changes vs its target branch — merges of the target into the PR branch are noise, not the author's work.

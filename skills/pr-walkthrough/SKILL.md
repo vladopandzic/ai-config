@@ -25,7 +25,7 @@ The tools are in `tools\` next to this file (`<tools>` below). Run Python with `
 1. Harvest as `pr-review` does, and stop with its message if it returns `{error}`:
    `pwsh -NoProfile -File "$HOME/.claude/skills/pr-review/scripts/pr-harvest.ps1" -Repo <repo> -Pr <n> -ScratchDir "<scratchpad>"`
    Save its JSON as `<data>\harvest.json` (UTF-8). Run it from PowerShell; from Bash its output can come back empty.
-2. Fetch the PR branch without checking it out: `git -C <localPath> fetch origin <dest> <fetchSpec>`. This creates the local `pr-<n>`. Read files with `git show pr-<n>:<path>`; the user's checkout stays on its own branch.
+2. Fetch the PR branch without checking it out: `git -C <localPath> fetch origin <dest> <fetchSpec>`. This creates the local `pr-<n>`. On Azure DevOps the harvest has already fetched it with the token from `tokenVariable`; skip this fetch there, because a plain fetch to an Azure DevOps Server often wants a Windows login the machine does not have. Read files with `git show pr-<n>:<path>`; the user's checkout stays on its own branch.
 3. `head` = `git rev-parse pr-<n>`, `base` = `git merge-base origin/<dest> pr-<n>` (full shas).
 4. The ticket, if `ticketKey` is set and a tracker connector is available. Without it, say in one line that the ticket was not read.
 5. The repo notes (`notesPath`), especially their `## Terms` section.
