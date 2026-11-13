@@ -49,6 +49,10 @@ Adds, checks, removes and applies EF Core migrations in any .NET repo. It finds 
 - `/ef-migration check`: before a PR or after merging the base branch.
 - `/ef-migration remove`, `/ef-migration update [migration]`, `/ef-migration script`
 
+### /prepare-pr
+
+Gets the current branch ready for a pull request: runs locally what the repo's CI runs (in a clean clone, with CI's .NET version), checks migrations and submodules, looks through the diff for leftovers and drafts the PR description. It never pushes or opens the PR on its own. `/prepare-pr quick` runs only the tests for the changed projects.
+
 ## Keeping clients out of the repo
 
 This repo is meant to be shared, so a pre-commit hook runs `check-no-clients.ps1` on the lines you are about to commit and stops the commit if it finds an e-mail address, a personal Windows path, a token, or anything from your own denylist.
