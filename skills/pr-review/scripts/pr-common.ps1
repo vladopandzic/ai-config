@@ -17,7 +17,7 @@ $ORIGINAL_GH_TOKEN = $env:GH_TOKEN
 
 function Import-ReviewConfig {
   if (-not (Test-Path $LOCAL_CONFIG_PATH)) {
-    return "nema ${LOCAL_CONFIG_PATH}: kopiraj config.example.ps1 u config.local.ps1 i upiši svoje repoe"
+    return "nema ${LOCAL_CONFIG_PATH}: pokreni /pr-review postavi da se složi popis repoa"
   }
   . $LOCAL_CONFIG_PATH
   $script:ReviewRepos = $ReviewRepos

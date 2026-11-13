@@ -13,7 +13,9 @@ draft komentari. Bugovi se dokazuju pokrenutim testom. Ništa ne ide na PR bez t
 
 ## Postavljanje
 1. Skill je u `%USERPROFILE%\.claude\skills\pr-review` (install.ps1 iz ai-configa ga poveže; inače kopiraj folder tamo).
-2. Kopiraj `config.example.ps1` u `config.local.ps1` i upiši svoje repoe. Git ignorira `config.local.ps1`.
+2. Pokreni `/pr-review postavi`: Claude nađe git repoe u folderu s projektima, pita koje reviewaš i zapiše
+   `config.local.ps1`. Može i ručno: kopiraj `config.example.ps1` u `config.local.ps1` i upiši svoje repoe. Git ignorira
+   `config.local.ps1`.
 3. Po želji za svaki repo napiši `repos\<repo>.md` po uzoru na `repo-notes.example.md`: što je u tom repou kritično, kako se
    vrte testovi, tko bi ga mogao napasti. Bez toga lensovi rade po općim pravilima. Git ignorira i `repos\`.
 4. Prilagodi `references\ton-komentara.md` svom stilu, komentari idu pod tvojim imenom.

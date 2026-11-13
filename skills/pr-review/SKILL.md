@@ -10,11 +10,29 @@ Harvest jednog PR-a → paralelne perspektive (svaka svoj subagent + lens fajl) 
 gotovim komentarima. **Ništa se ne objavljuje na PR bez potvrde.**
 
 Argumenti: prazno = izbor PR-a · `[<repo>] <broj>` · `[<repo>] <broj> delta|full|quick|only <lens,...>` ·
-`objavi [<repo>] <broj> [brojevi]`. `<repo>` smije izostati kad je u configu samo jedan repo.
+`objavi [<repo>] <broj> [brojevi]` · `postavi`. `<repo>` smije izostati kad je u configu samo jedan repo.
 
 Putanje u ovom fajlu kreću od foldera skilla, `$HOME/.claude/skills/pr-review/`. Repoi, hostovi i lokalni klonovi su u
-`config.local.ps1`. Ako skripta javi da ga nema, reci korisniku da kopira `config.example.ps1` u `config.local.ps1` i
-upiše svoje repoe (README u folderu skilla), i stani.
+`config.local.ps1`. Ako skripta javi da ga nema, napravi ga kroz `postavi` i tek onda nastavi.
+
+## Postavi → složi config.local.ps1
+
+1. Ako `config.local.ps1` već postoji, pročitaj ga: dodaješ repoe koji fale, postojeće ne diraš.
+2. Pitaj u kojem folderu korisnik drži projekte. U njemu, do dvije razine dubine, nađi git repoe čiji `origin` vodi na
+   `github.com` ili `bitbucket.org`, i iz adrese izvuci ime repoa te `owner` (GitHub) ili `workspace` (Bitbucket).
+   Preskoči submodule (`.git` je fajl, ne folder), worktreeje i drugi klon istog repoa; ostaje klon na najvišoj razini.
+3. Pokaži popis (repo, host, owner ili workspace, lokalni folder) i pitaj koje reviewa. Ništa ne upisuj bez tog izbora.
+4. Za svaki izabrani repo:
+   - `ticketRegex`: ključ tiketa koji se najčešće pojavljuje u zadnjih 200 commit poruka osnovne grane
+     (`git log origin/<base> -200 --format=%s`), npr. `\bABC-\d+\b`; ako ga nema, prazno. Imena grana su lošiji izvor,
+     jer stare grane često nose ključ koji se više ne koristi.
+   - `ghAccount` (GitHub): ako je u `gh` prijavljeno više računa, onaj koji vidi repo
+     (`GH_TOKEN=$(gh auth token --user <račun>) gh repo view <owner>/<repo>`); s jednim računom prazno.
+5. Zapiši `config.local.ps1` u obliku `config.example.ps1`, sa zaglavljem iz njega, i pokaži korisniku što je upisano.
+6. Za svaki Bitbucket workspace reci koje varijable trebaju (`BITBUCKET_<WORKSPACE>_EMAIL`, `_TOKEN`, a `_TOKEN_WRITE`
+   samo za objavu komentara), koje dozvole token treba (README u folderu skilla) i kako ih korisnik sam upiše u svom
+   terminalu: `[Environment]::SetEnvironmentVariable('<ime>', '<vrijednost>', 'User')`. Token nikad ne traži u chatu.
+7. Pokreni `check-setup.ps1` iz korijena ai-config repoa (dva foldera iznad pravog foldera skilla) i pokaži što još fali.
 
 ## 0. Bez argumenta → izbor PR-a
 

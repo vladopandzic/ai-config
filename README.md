@@ -39,7 +39,7 @@ It needs Python for the history scan. Your decisions (written, skipped) go to `s
 
 Reviews a pull request on GitHub or Bitbucket from nine angles (bugs, architecture, tests, security, performance, conventions, ticket, unresolved comments, design questions), proves bugs with a test it actually runs, and drafts the comments. Nothing is posted until you say so.
 
-Your repos go in `skills\pr-review\config.local.ps1` and notes about one repo in `skills\pr-review\repos\<repo>.md`; git ignores both. Setup is in `skills\pr-review\README.md`.
+Your repos go in `skills\pr-review\config.local.ps1` and notes about one repo in `skills\pr-review\repos\<repo>.md`; git ignores both. `/pr-review postavi` writes the config for you from the git repos in your projects folder. Setup is in `skills\pr-review\README.md`.
 
 ### /ef-migration
 

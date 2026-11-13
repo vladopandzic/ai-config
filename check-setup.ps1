@@ -141,7 +141,7 @@ function Test-PrReviewSetup
 {
     if (-not (Test-Path -LiteralPath $PR_REVIEW_CONFIG_PATH))
     {
-        Write-Status -Status 'missing' -Message 'pr-review: copy skills\pr-review\config.example.ps1 to config.local.ps1 and list your repos'
+        Write-Status -Status 'missing' -Message 'pr-review does not know your repos yet: tell Claude "/pr-review postavi" and it writes the list for you'
         return
     }
 
