@@ -28,10 +28,15 @@ Putanje u ovom fajlu kreću od foldera skilla, `$HOME/.claude/skills/pr-review/`
      jer stare grane često nose ključ koji se više ne koristi.
    - `ghAccount` (GitHub): ako je u `gh` prijavljeno više računa, onaj koji vidi repo
      (`GH_TOKEN=$(gh auth token --user <račun>) gh repo view <owner>/<repo>`); s jednim računom prazno.
-5. Zapiši `config.local.ps1` u obliku `config.example.ps1`, sa zaglavljem iz njega, i pokaži korisniku što je upisano.
+5. Pitaj gdje se spremaju reviewi (`$ReviewsDir`); ako nema želje, ostaje kao u primjeru. Zapiši `config.local.ps1` u
+   obliku `config.example.ps1`, sa zaglavljem iz njega, i pokaži korisniku što je upisano.
 6. Za svaki Bitbucket workspace reci koje varijable trebaju (`BITBUCKET_<WORKSPACE>_EMAIL`, `_TOKEN`, a `_TOKEN_WRITE`
    samo za objavu komentara), koje dozvole token treba (README u folderu skilla) i kako ih korisnik sam upiše u svom
    terminalu: `[Environment]::SetEnvironmentVariable('<ime>', '<vrijednost>', 'User')`. Token nikad ne traži u chatu.
+   Kad su varijable upisane, provjeri `GET /2.0/user`. Ako vrati 403, token nema `read:user:bitbucket`, pa skripta ne
+   zna koji su komentari i approve korisnikovi: ili neka doda taj scope, ili u sudionicima zadnjih PR-ova tog workspacea
+   nađi `account_id` čiji je `display_name` jednak korisnikovom `git config user.name`, pokaži ga i nakon potvrde upiši
+   kao `bitbucketAccountId`.
 7. Pokreni `check-setup.ps1` iz korijena ai-config repoa (dva foldera iznad pravog foldera skilla) i pokaži što još fali.
 
 ## 0. Bez argumenta → izbor PR-a

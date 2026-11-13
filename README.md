@@ -102,6 +102,14 @@ It runs `git pull` and then `install.ps1`, so guides added on the other machine 
 
 ## New machine
 
+The short way: clone the repo, open Claude Code in its folder and say
+
+> Read `skills\ai-config-setup\SKILL.md` in this repo and follow it.
+
+Claude runs `install.ps1`, then goes through everything that is still missing with you, one item at a time. Later, `/ai-config-setup` runs the same check again.
+
+By hand:
+
 1. Optionally turn on Windows Developer Mode (Settings → System → For developers), so guides are linked instead of copied.
 2. Clone into any folder; the examples use the home folder. The repo is private, so clone with the personal GitHub account:
 
