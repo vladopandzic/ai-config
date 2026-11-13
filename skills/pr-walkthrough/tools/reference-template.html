@@ -2073,7 +2073,7 @@
     if (ci.length) {
       const failed = ci.find(c => /fail|error/i.test(c.state)), running = ci.find(c => /progress|pending|queued|running/i.test(c.state));
       const pick = failed || running || ci[0], build = (pick.name.match(/#\d+\s*$/) || [''])[0].trim();
-      const href = META.host === 'bitbucket' ? `${META.repoUrl}/commits/${META.head}` : `${META.prUrl}/checks`;
+      const href = META.host === 'bitbucket' ? `${META.repoUrl}/commits/${META.head}` : META.host === 'azure' ? META.prUrl : `${META.prUrl}/checks`;
       list.push({ k: 'ci', s: failed ? 'bad' : running ? 'warn' : 'ok', t: failed ? 'CI build je pao' : running ? 'CI build je u tijeku' : 'CI build je prošao',
                   small: build ? `build ${build}` : '', act: ['Detalji ↗', href] });
     }
@@ -2123,7 +2123,7 @@
     const btn = nb ? el('span', 'merge-btn') : (META.prUrl ? ext(META.prUrl, '', 'merge-btn') : el('span', 'merge-btn'));
     btn.append(hico(nb ? 'lock' : 'merge'), 'Merge');
     if (nb) { btn.setAttribute('aria-disabled', 'true'); btn.title = `Riješi ${nb} ${pl(nb, 'blokadu', 'blokade', 'blokada')}`; }
-    else btn.title = `Otvori PR na ${META.host === 'bitbucket' ? 'Bitbucketu' : 'GitHubu'}`;
+    else btn.title = `Otvori PR na ${META.host === 'bitbucket' ? 'Bitbucketu' : META.host === 'azure' ? 'Azure DevOpsu' : 'GitHubu'}`;
     merge.append(ic, tx, btn);
     const bar = el('div', 'chk-bar');
     bar.title = `${nb} blokira · ${nw} upozorenja · ${no} prošlo`;
@@ -2451,7 +2451,7 @@
       });
       root.append(ol);
     } else root.append(el('div', 'ov-empty', 'Na PR-u još nema komentara.'));
-    if (disc.fetchedAt) root.append(el('div', 'ov-hint', disc.live ? `Svježe s ${META.host === 'bitbucket' ? 'Bitbucketa' : 'GitHuba'} (pomoćnik).` : `Stanje od ${askWhen(Date.parse(disc.fetchedAt))}. Uz pokrenut pomoćnik osvježava se pri otvaranju toura.`));
+    if (disc.fetchedAt) root.append(el('div', 'ov-hint', disc.live ? `Svježe s ${META.host === 'bitbucket' ? 'Bitbucketa' : META.host === 'azure' ? 'Azure DevOpsa' : 'GitHuba'} (pomoćnik).` : `Stanje od ${askWhen(Date.parse(disc.fetchedAt))}. Uz pokrenut pomoćnik osvježava se pri otvaranju toura.`));
 
     section('spark', 'AI objašnjenja', el('span', 'ov-count', String(askSaved.length)));
     if (askSaved.length) {
@@ -2652,7 +2652,7 @@
   }
 
   const findById = id => FIND.find(f => f.id === id);
-  function hostName() { return META.host === 'bitbucket' ? 'Bitbucket' : 'GitHub'; }
+  function hostName() { return META.host === 'bitbucket' ? 'Bitbucket' : META.host === 'azure' ? 'Azure DevOps' : 'GitHub'; }
   const myGenerals = () => Object.entries(saved.generals).map(([id, g]) => ({ id, ...g }));
   function renderMine() {
     if (view) renderView(null, drawer.scrollTop);
@@ -2753,7 +2753,7 @@
     sum.append(el('em', t.resolved ? 'ok' : 'open', t.resolved ? 'riješeno' : 'otvoreno'));
     if (t.outdated) sum.append(el('em', 'old', 'zastarjelo, kod se od tad promijenio'));
     if (t.comments.some(c => discNew(c.at))) sum.append(el('em', 'new', 'novo'));
-    if (t.url) sum.append(ext(t.url, `na ${META.host === 'bitbucket' ? 'Bitbucketu' : 'GitHubu'} ↗`, 'pt-link'));
+    if (t.url) sum.append(ext(t.url, `na ${META.host === 'bitbucket' ? 'Bitbucketu' : META.host === 'azure' ? 'Azure DevOpsu' : 'GitHubu'} ↗`, 'pt-link'));
     box.append(sum);
     t.comments.forEach(c => {
       const row = el('div', 'pt-c' + (discNew(c.at) ? ' new' : '')), head = el('div', 'pt-h'), body = el('div', 'pt-b');
@@ -2915,7 +2915,7 @@
   document.getElementById('find-toggle-l').hidden = !FIND.length;
 
   /* ===== Kod: cijeli fajlovi (SRC), bojanje, proširenje konteksta, F12 ===== */
-  const fileLineUrl = (path, n) => fileAtHead(path) + (META.host === 'bitbucket' ? `#lines-${n}` : `#L${n}`);
+  const fileLineUrl = (path, n) => fileAtHead(path) + (META.host === 'bitbucket' ? `#lines-${n}` : META.host === 'azure' ? `&line=${n}&lineEnd=${n + 1}&lineStartColumn=1&lineEndColumn=1&lineStyle=plain` : `#L${n}`);
   const linesCache = new Map();
   // {head line after which they were: [old line numbers]}; 0 = before the first line
   function deletedByHeadLine(path) {
@@ -3221,7 +3221,7 @@
       }
       const link = lineAnchor(file, rs, n, n);
       const href = link ? link.diff : rs === 'head' ? fileLineUrl(file, n) : null;
-      if (href) { const a = ext(href, '', 'act-link'); a.append(icon('external')); a.title = link ? `Linija ${n} u PR-u` : `Linija ${n} na ${META.host === 'bitbucket' ? 'Bitbucketu' : 'GitHubu'}`; acts.append(a); }
+      if (href) { const a = ext(href, '', 'act-link'); a.append(icon('external')); a.title = link ? `Linija ${n} u PR-u` : `Linija ${n} na ${META.host === 'bitbucket' ? 'Bitbucketu' : META.host === 'azure' ? 'Azure DevOpsu' : 'GitHubu'}`; acts.append(a); }
       row.append(ln, gut, pre, acts, el('div', 'note', note));
       ((old ? fOld : fHere)[n] || []).forEach(f => row.append(findingView(f, () => openEditor(row, k, file, rs, n, code, f))));
       if (saved.comments[k]) row.append(commentView(saved.comments[k]));
@@ -3307,7 +3307,7 @@
     const links = lineAnchor(file, side, from, to);
     const href = links ? links.blob : side === 'head' ? fileAtHead(file) : null;
     const name = href ? ext(href, file.slice(slash + 1), 'file-name') : el('span', 'file-name', file.slice(slash + 1));
-    if (href) name.title = `Cijeli fajl na ${META.host === 'bitbucket' ? 'Bitbucketu' : 'GitHubu'}`;
+    if (href) name.title = `Cijeli fajl na ${META.host === 'bitbucket' ? 'Bitbucketu' : META.host === 'azure' ? 'Azure DevOpsu' : 'GitHubu'}`;
     bar.append(icon('file'), name);
     if (all && shown.length < all.length) bar.append(el('span', 'file-lines', `linije ${from}–${to} od ${all.length}`));
     else if (all) bar.append(el('span', 'file-lines', `${all.length} linija`));
@@ -3549,8 +3549,8 @@
     foot.append(side === 'base' ? 'Fajl prije PR-a: ' : 'Fajl: ', el('code', null, `${file}:${from}`));
     const links = lineAnchor(file, side, from, to);
     const row = el('div', 'code-links');
-    if (links) row.append(ext(links.diff, 'Otvori u PR-u ↗', 'btn'), ext(links.blob, `Cijeli fajl na ${META.host === 'bitbucket' ? 'Bitbucketu' : 'GitHubu'} ↗`, 'btn'));
-    else if (side === 'head') row.append(ext(fileLineUrl(file, from), `Otvori na ${META.host === 'bitbucket' ? 'Bitbucketu' : 'GitHubu'} ↗`, 'btn'));
+    if (links) row.append(ext(links.diff, 'Otvori u PR-u ↗', 'btn'), ext(links.blob, `Cijeli fajl na ${META.host === 'bitbucket' ? 'Bitbucketu' : META.host === 'azure' ? 'Azure DevOpsu' : 'GitHubu'} ↗`, 'btn'));
+    else if (side === 'head') row.append(ext(fileLineUrl(file, from), `Otvori na ${META.host === 'bitbucket' ? 'Bitbucketu' : META.host === 'azure' ? 'Azure DevOpsu' : 'GitHubu'} ↗`, 'btn'));
     if (row.childNodes.length) foot.append(row);
   }
 
@@ -3702,7 +3702,7 @@
     if (talk.length > 7000) talk = talk.slice(0, 7000) + '\n  …(skraćeno)';
     const mine = myComments().filter(c => c.file === file).map(c => `- linija ${c.line}: ${c.text.replace(/\s+/g, ' ').slice(0, 500)}`);
     return [
-      talk ? `Rasprava na PR-u o ovom fajlu (komentari reviewera i autora s ${META.host === 'bitbucket' ? 'Bitbucketa' : 'GitHuba'}):\n${talk}` : 'Na PR-u nema rasprave o ovom fajlu.',
+      talk ? `Rasprava na PR-u o ovom fajlu (komentari reviewera i autora s ${META.host === 'bitbucket' ? 'Bitbucketa' : META.host === 'azure' ? 'Azure DevOpsa' : 'GitHuba'}):\n${talk}` : 'Na PR-u nema rasprave o ovom fajlu.',
       mine.length ? `Komentari koje je reviewer koji te pita napisao u touru za ovaj fajl (još neobjavljeni):\n${mine.join('\n')}` : '',
     ].filter(Boolean).join('\n');
   }
@@ -6450,7 +6450,7 @@ ${code}
     stat('Linija', fp.lines.toLocaleString('hr-HR'));
     stat('Ova sesija', Math.max(1, Math.round((Date.now() - RV_SESSION) / 60000)) + ' min');
     stat('Kritični', crit.length ? `${crit.filter(f => rvFileState(f).viewed).length}/${crit.length} ✓` : '—', crit.length ? 'ok' : null);
-    const acts = el('div', 'acts'), url = META.host === 'bitbucket' ? META.prUrl : (META.prUrl ? META.prUrl + '/files' : '');
+    const acts = el('div', 'acts'), url = META.host === 'bitbucket' ? META.prUrl : META.host === 'azure' ? (META.prUrl ? META.prUrl + '?_a=files' : '') : (META.prUrl ? META.prUrl + '/files' : '');
     const btn = (cls, text, fn) => { const b = el('button', cls, text); b.type = 'button'; b.addEventListener('click', fn); acts.append(b); return b; };
     const close = () => ov.remove();
     btn('ok', '✓ Odobri PR', () => { if (url) open(url, '_blank', 'noopener'); close(); }).title = `Otvara PR na ${META.host === 'bitbucket' ? 'Bitbucketu (gumb Approve)' : 'GitHubu (Review changes → Approve)'}`;
