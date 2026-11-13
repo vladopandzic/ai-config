@@ -115,20 +115,18 @@ Claude runs `install.ps1`, then goes through everything that is still missing wi
 By hand:
 
 1. Optionally turn on Windows Developer Mode (Settings → System → For developers), so guides are linked instead of copied.
-2. Clone into any folder; the examples use the home folder. The repo is private, so clone with the personal GitHub account:
+2. Clone into any folder; the examples use the home folder:
 
    ```powershell
-   $env:GH_TOKEN = gh auth token --user vladopandzic
-   gh repo clone vladopandzic/ai-config $HOME\ai-config
-   Remove-Item Env:GH_TOKEN
+   git clone <this repo's URL> $HOME\ai-config
    & $HOME\ai-config\install.ps1
    ```
 
-3. If `gh` there is also logged in to a work account, make this repo always use the personal one:
+3. If you push to your own fork and `gh` is logged in to several accounts, make that clone always use one of them:
 
    ```powershell
    git -C $HOME\ai-config config --local --add credential.helper ""
-   git -C $HOME\ai-config config --local --add credential.helper '!f() { test "$1" = get && echo username=vladopandzic && echo password=$(gh auth token --user vladopandzic); }; f'
+   git -C $HOME\ai-config config --local --add credential.helper '!f() { test "$1" = get && echo username=<account> && echo password=$(gh auth token --user <account>); }; f'
    ```
 
 ## Using these rules on someone else's machine
@@ -138,7 +136,6 @@ The rules work without any of my personal setup. A few things refer to it and ar
 | What | Where | What happens without it |
 |---|---|---|
 | `%USERPROFILE%\.claude\clients.md` (my clients, trackers, commit styles) | `rules/git.md` | Not in this repo. Without it the commit style comes from the repository's git history only. |
-| GitHub account `vladopandzic` | README "New machine" steps | Clone with your own access, or copy the files. |
 | Windows Developer Mode | `install.ps1` (symlinks) | Guides are copied instead of linked; run `update.ps1` after every pull to refresh them. |
 
 ## Never commit
