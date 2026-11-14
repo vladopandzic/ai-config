@@ -42,3 +42,10 @@ Piši u svoje ime i dodaj samo ono što nit još nema. Ne odgovaraj u ime autora
 - **Objasni pojmove.** Ne samo "treba biti idempotentno", nego "dva ista poziva moraju dati isti rezultat". Imena klasa ostaju kakva jesu.
 - Veži se na točan `file:line` i konkretan slučaj.
 - Ne tvrdi ono što nisi provjerio.
+
+## Primjeri: predloženo → kako bih ja napisao
+Parovi koje je korisnik ispravio. Piši kao desna strana.
+
+- Zahtjev postaje opušteno pitanje:
+  > ~~Molim kratak komentar s primjerom vrijednosti ovdje, da je ugovor s vanjskim servisom vidljiv u modelu.~~
+  > Jel ok nadodat komentar s primjerom vrijednosti ovdje, da je ugovor s vanjskim servisom vidljiv u modelu?

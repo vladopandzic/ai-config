@@ -84,11 +84,12 @@ python -I $T\pr_sources.py $R <base> <head> $D\code-panels.json $D\sources.json
 python -I $T\pr_status.py $R <base> <head> $D\harvest.json $D\prstatus.json
 python -I $T\pr_discussion.py $D\harvest.json $D\discussion.json
 python -I $T\pr_db.py $R <base> <head> $D\db.json --no-ai
-python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthrough.html CODE=$D\code-panels.json SOURCES=$D\sources.json OUTLINE=$D\outline.json PRINFO=$D\prstatus.json TOPICS=$D\topics.json HUMAN=$D\topics-human.json LANES=$D\lanes.json META=$D\meta.json DISCUSSION=$D\discussion.json DB=$D\db.json [ZOOM=$D\zoom.json] [DELTA=$D\delta.json] [FINDINGS=$D\findings.json]
+python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthrough.html CODE=$D\code-panels.json SOURCES=$D\sources.json OUTLINE=$D\outline.json PRINFO=$D\prstatus.json TOPICS=$D\topics.json HUMAN=$D\topics-human.json LANES=$D\lanes.json META=$D\meta.json DISCUSSION=$D\discussion.json DB=$D\db.json TONE="$HOME\.claude\skills\pr-review\references\ton-komentara.md" [ZOOM=$D\zoom.json] [DELTA=$D\delta.json] [FINDINGS=$D\findings.json]
 ```
 
 - `pr_topics.py` finds from the diff what the PR touches (migrations, packages, settings, background jobs, external services, permissions, alerts, CI, screens, tests); its rules are for .NET. `pr_packages.py` adds where each changed NuGet package is used and its health from the public NuGet API (only package ids and versions are sent).
 - `pr_db.py` builds the "Baza" view only when the PR changes an EF model snapshot. It reads PostgreSQL, SQL Server and SQLite snapshots; when the PR changes several DbContexts, each table name carries its context. Sample rows come only from a local PostgreSQL through the repo's user-secrets, read-only. Without `--no-ai` it asks Claude Code for example rows of tables the local database does not have; leave that to the user.
+- `TONE=` puts pr-review's comment tone rules into the page, so "Predloži komentare" writes in the user's voice. The user's corrections to suggested comments go into that file as examples.
 - Leave out an optional `NAME=` whose file does not exist; the page then hides that part.
 
 Review findings: when `<reviewsDir>\<repo>-<pr>.findings.json` exists, copy it to `<data>\findings.json` and pass `FINDINGS=`. A findings file made for an older head still shows, with a note that the lines may have moved.

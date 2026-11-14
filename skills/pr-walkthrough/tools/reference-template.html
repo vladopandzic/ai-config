@@ -1781,6 +1781,7 @@
   const DELTA = /*__DELTA__*/{};
   const DBV = /*__DB__*/{};
   const FINDINGS = /*__FINDINGS__*/{};
+  const TONE = /*__TONE__*/"";
 
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const codeChip = () => el('span', 'codechip', '</>');
@@ -3706,6 +3707,9 @@
       mine.length ? `Komentari koje je reviewer koji te pita napisao u touru za ovaj fajl (još neobjavljeni):\n${mine.join('\n')}` : '',
     ].filter(Boolean).join('\n');
   }
+  function askTone() {
+    return TONE ? `Ton komentara: tekst ide na PR pod mojim imenom, pa ga piši po ovim pravilima i primjerima:\n${TONE}` : '';
+  }
   function askPrompt(a) {
     const all = linesOf(a.file, a.side) || [];
     const p = view?.type === 'panel' ? CODE[view.key] : null;
@@ -3993,7 +3997,9 @@
 - line: broj linije u fajlu ${a.file} u verziji iz PR-a (isti brojevi kao u kodu koji si dobio). Za raspon uzmi prvu liniju. Komentar "općenito na fajl" stavi na liniju deklaracije tipa.
 - text: točno tekst kakav ide na PR, bez "> " na početku; smije markdown (\`kod\`, \`\`\` blokovi).
 - Ako si za liniju na kojoj već imam komentar predložio dopunu, vrati cijeli novi tekst.
-- Samo komentare koje si stvarno predložio, ništa novo.` });
+- Samo komentare koje si stvarno predložio, ništa novo.
+
+${askTone()}` });
     if (askCfg.key) askSend(); else { a.settings = true; askRender(); }
   }
   function askSuggestFile() {
@@ -4020,6 +4026,8 @@ Linije s + su nove ili promijenjene u PR-u: komentiraj njih (i ono što one dira
 Ne ponavljaj ono što već postoji: rasprava na PR-u, moji komentari i nalazi reviewa su ispod. Najviše 8 komentara, važniji prvi. Ako nema ničeg vrijednog, vrati prazan popis.
 Vrati SAMO JSON, bez teksta oko njega:
 {"comments": [{"line": <broj linije iz koda ispod>, "text": "<komentar točno kako ide na PR>", "why": "<jedna kratka rečenica za mene: zašto>"}]}
+
+${askTone()}
 
 ${askTalk(file)}
 
