@@ -20,6 +20,7 @@ import hmac
 import http.server
 import io
 import json
+import os
 import pathlib
 import re
 import secrets
@@ -41,6 +42,8 @@ SOURCE_READY_MARKER = '.pr-walkthrough-ok'
 CLAUDE_ARGS = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
                '--restricted', '--strict-mcp-config', '--tools', 'Read,Grep,Glob']
 SPEEDS = {'deep': [], 'fast': ['--effort', 'low'], 'fastest': ['--model', 'sonnet', '--effort', 'low']}
+# Without this a set ANTHROPIC_API_KEY makes claude -p bill API credits instead of the user's subscription.
+CLAUDE_ENV = {name: value for name, value in os.environ.items() if name != 'ANTHROPIC_API_KEY'}
 
 
 def load_key():
@@ -180,7 +183,7 @@ class PrSession:
         else:
             repo = self.server.repo_for(self.pr)
             self.cwd = pr_source(repo, self.pr) or repo
-        self.proc = subprocess.Popen(args, cwd=self.cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        self.proc = subprocess.Popen(args, cwd=self.cwd, env=CLAUDE_ENV, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     def stop(self):
         if self.proc and self.proc.poll() is None:

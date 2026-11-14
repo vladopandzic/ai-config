@@ -817,7 +817,8 @@ Pravila:
 Vrati SAMO JSON, bez objašnjenja: {{"rows": [[...]], "notes": {{"<indeks reda od 0>": "razlog"}}}}"""
     try:
         r = subprocess.run([claude, '-p', '--output-format', 'json', '--strict-mcp-config', '--tools', 'Read,Grep,Glob', '--effort', 'low'],
-                           input=prompt, capture_output=True, text=True, encoding='utf-8', cwd=repo, timeout=300)
+                           input=prompt, capture_output=True, text=True, encoding='utf-8', cwd=repo, timeout=300,
+                           env={name: value for name, value in os.environ.items() if name != 'ANTHROPIC_API_KEY'})
         text = json.loads(r.stdout).get('result', '')
         data = json.loads(text[text.index('{'):text.rindex('}') + 1])
     except Exception as e:
