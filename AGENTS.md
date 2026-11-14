@@ -81,3 +81,10 @@ Before writing or reviewing code, read the guide that applies:
 - Do not leave workarounds, hacks, `TODO`s or "for now" solutions silently. If you take a shortcut, say so explicitly and explain what the proper solution would be.
 - If the proper solution is much larger in scope than the task (many files, behavior changes), describe it and ask — scope is the user's decision, effort is not a reason.
 - When asked for a time estimate, estimate your own working time, separately from the time the user needs to review and test.
+
+## Money: hard stop
+
+- Anything that can cost the user money beyond their subscription is a hard stop. This covers calls billed per token (the Anthropic or another AI API, `claude -p` or the Agent SDK run with an API key, scripts and helpers that start an AI model in the background), cloud resources, paid services and paid plans or package tiers.
+- Before you build, run or test such a thing, stop and say what will cost money, on which account, roughly how much, and how to avoid it, then wait for an explicit yes. A yes covers that one run, not later ones.
+- Before running anything that starts Claude in the background, check whether `ANTHROPIC_API_KEY` (or another API key) is set: if it is, that run is billed to the API, not the subscription. Code that starts Claude this way removes `ANTHROPIC_API_KEY` from the child process environment, so the user's subscription login is used, unless the user chose API billing.
+- If you notice that something is already spending the user's money (an API key in use, a running cloud resource), say so right away.
