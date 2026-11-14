@@ -43,7 +43,7 @@ Your repos go in `skills\pr-review\config.local.ps1` and notes about one repo in
 
 ### /pr-walkthrough
 
-Walks you through someone else's PR before you review it: what problem it solves, before and after in plain words, a tour of the three to five places in the code that matter, the domain terms, and where to look carefully. It reads only and uses the pr-review setup. Terms it explains can be kept in the repo notes, so explanations get better with every PR.
+Walks you through someone else's PR before you review it: what problem it solves, before and after in plain words, a tour of the three to five places in the code that matter, the domain terms, and where to look carefully. Claude only reads and uses the pr-review setup. On the page you can have your comments checked against the code before posting ("Provjeri spremne") and send the ones you pick to GitHub or Bitbucket. Terms it explains can be kept in the repo notes, so explanations get better with every PR.
 
 ### /ef-migration
 

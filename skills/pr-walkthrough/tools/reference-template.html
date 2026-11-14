@@ -563,6 +563,47 @@
   #pgv[hidden] { display: none; }
   .rvw-item.nacrt .st { color: var(--amb); }
   .rvw-item.poslano .st { color: var(--add); }
+  .post-open { margin-left: auto; padding: 3px 10px; border: 1px solid var(--blue); border-radius: 3px; background: var(--bg); color: var(--blue); font: 600 12px/1.5 var(--sans); cursor: pointer; }
+  .post-open:hover { background: var(--blue); color: var(--bg); }
+  .post-dlg { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; background: color-mix(in srgb, #000 45%, transparent); }
+  .post-card { display: flex; flex-direction: column; width: min(860px, 100%); max-height: 100%; border: 1px solid var(--rule2); border-radius: 6px; background: var(--bg); box-shadow: 0 12px 40px rgba(0, 0, 0, .35); font: 14px/1.5 var(--sans); }
+  .post-card > header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--rule2); }
+  .post-card > header h3 { margin: 0; font: 600 15px var(--sans); }
+  .post-card > header .who { color: var(--fg3); font: 12px var(--mono); }
+  .post-card > header .x { margin-left: auto; width: 28px; height: 28px; border: none; border-radius: 3px; background: none; color: var(--fg2); font: 18px/1 var(--sans); cursor: pointer; }
+  .post-body { overflow: auto; padding: 10px 16px; }
+  .post-msg { padding: 8px 10px; margin: 0 0 10px; border-left: 3px solid var(--blue); background: var(--blue-bg); }
+  .post-msg.bad { border-left-color: var(--red); background: var(--red-bg); }
+  .post-grp { margin: 12px 0 4px; font: 600 11px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--fg3); }
+  .post-it { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; padding: 8px 0; border-top: 1px solid var(--rule); }
+  .post-it input { margin-top: 4px; }
+  .post-it .where { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; font: 12px var(--mono); color: var(--fg2); }
+  .post-it .where em { font: normal 600 11px var(--sans); }
+  .post-it .where em.reply { color: var(--blue); } .post-it .where em.warn { color: var(--amb); } .post-it .where em.ok { color: var(--add); } .post-it .where em.err { color: var(--red); }
+  .post-it .txt { grid-column: 2; max-height: 9.5em; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg); -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+  .post-it .txt.all { max-height: none; -webkit-mask-image: none; mask-image: none; }
+  .post-it .txt pre { margin: 4px 0; padding: 6px 8px; overflow-x: auto; border: 1px solid var(--rule2); border-radius: 4px; background: var(--bg2); font: 12px/1.5 var(--mono); white-space: pre; }
+  .post-it .txt code { padding: 1px 4px; border-radius: 3px; background: var(--bg2); font: 12.5px var(--mono); }
+  .post-it .more { grid-column: 2; justify-self: start; padding: 0; border: none; background: none; color: var(--blue); font: 12px var(--sans); cursor: pointer; }
+  .post-it.off { opacity: .55; }
+  .post-grp button { margin-left: 10px; padding: 0; border: none; background: none; color: var(--blue); font: 600 11px var(--sans); letter-spacing: 0; text-transform: none; cursor: pointer; }
+  .post-card > footer { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--rule2); }
+  .post-card > footer { margin: 0; background: var(--bg); }
+  .post-card > footer .hint { padding: 0; border: none; background: none; color: var(--fg3); font-size: 12.5px; }
+  .post-card > footer button { padding: 6px 14px; border: 1px solid var(--rule2); background: var(--bg); color: var(--fg); font: 13px var(--sans); cursor: pointer; }
+  .post-card > footer button.primary { margin-left: auto; background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .post-card > footer button:disabled { opacity: .5; cursor: default; }
+  .rvw-item.v-stoji .ic, .rvw-item.v-stoji .st { color: var(--add); }
+  .rvw-item.v-djelomicno .ic, .rvw-item.v-djelomicno .st { color: var(--amb); }
+  .rvw-item.v-ne_stoji .ic, .rvw-item.v-ne_stoji .st { color: var(--red); }
+  .check-status { flex-basis: 100%; font: 12.5px/1.45 var(--sans); color: var(--fg2); }
+  .check-result { margin-top: 8px; padding: 6px 10px; border-left: 3px solid var(--rule2); font: 13px/1.45 var(--sans); color: var(--fg2); }
+  .check-result b { color: var(--fg); }
+  .check-result.stoji { border-left-color: var(--add); }
+  .check-result.djelomicno { border-left-color: var(--amb); background: var(--amb-bg); }
+  .check-result.ne_stoji { border-left-color: var(--red); background: var(--red-bg); }
+  .check-result.stale { font-style: italic; color: var(--fg3); }
+  .check-result .ev { display: block; margin-top: 2px; font: 11.5px/1.5 var(--mono); color: var(--fg3); overflow-wrap: anywhere; }
   .pgv-h { margin: 0 0 10px; font: 600 17px/1.35 var(--sans); color: var(--fg); }
   .pgv-text { font: 14.5px/1.6 var(--sans); color: var(--fg); }
   .pgv-q { margin: 16px 0 4px; font: 600 14px/1.5 var(--sans); color: var(--fg); }
@@ -2382,6 +2423,7 @@
 
     const mine = myComments();
     section('comment', 'Moji komentari', el('span', 'ov-count', String(mine.length)));
+    if (postCanSend() && (mine.length || FIND.length)) root.lastElementChild.append(postButton());
     if (mine.length) {
       const ul = el('ol', 'ov-steps ov-mine');
       mine.forEach(c => {
@@ -2500,6 +2542,107 @@
   const ckey = (file, side, n) => `${file}|${side || 'head'}|${n}`;
   const myComments = () => Object.values(saved.comments).sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
   const unexported = () => myComments().filter(c => !saved.exportedAt || c.at > saved.exportedAt).length;
+
+  /* ===== Provjeri spremne: prije slanja Claude jednim temeljitim prolazom provjeri sve spremne komentare u kodu ===== */
+  const CHECK_LOOK = { stoji: ['✓', 'stoji'], djelomicno: ['◐', 'djelomično'], ne_stoji: ['✗', 'ne stoji'] };
+  const check = { busy: false, status: '', note: '', ctrl: null };
+  // a check counts only for the exact text and PR version it looked at
+  const checkOf = c => c.check && c.check.head === META.head && c.check.text === c.text ? c.check : null;
+  const checkReady = () => myComments().filter(c => !c.posted && !(c.ai && !c.reviewed));
+  function checkView(v) {
+    const [icon, label] = CHECK_LOOK[v.verdict];
+    const box = el('div', 'check-result ' + v.verdict);
+    box.append(el('b', null, v.fixed ? '✓ Provjera: ispravljeno prema provjeri' : `${icon} Provjera: ${label}`));
+    if (v.why && !v.fixed) box.append(' · ' + v.why);
+    const notes = [v.duplicate && `isto kao ${v.duplicate}`, v.conflict && `proturječi ${v.conflict}`].filter(Boolean);
+    if (notes.length) box.append(el('div', null, notes.join(' · ')));
+    if (v.evidence) box.append(el('span', 'ev', 'dokaz: ' + v.evidence));
+    return box;
+  }
+  function checkPrompt(list) {
+    const shown = s => String(s || '').replace(/\s+/g, ' ').trim();
+    const comments = list.map((c, i) => [`#${i + 1} ${c.file}:${c.line}${c.side === 'base' ? ' (stari kod)' : ''}`, `kod: ${shown(c.code)}`, c.text].join('\n'));
+    const drafts = FIND.filter(f => f.draft && findState(f) === 'open')
+      .map(f => `- nalaz ${f.id} (${findOnLine(f) ? `${f.file}:${f.line}` : 'općenito'}): ${shown(f.draft).slice(0, 400)}`);
+    let talk = discThreads().filter(t => !t.resolved)
+      .map(t => `- ${t.path || 'općenito'}${t.line ? ':' + t.line : ''}: ` + t.comments.map(c => `${personName(c.author)}: ${shown(c.body).slice(0, 250)}`).join(' / ')).join('\n');
+    if (talk.length > 6000) talk = talk.slice(0, 6000) + '\n…(skraćeno)';
+    return [
+      'Prije objave na PR provjeri moje komentare spremne za slanje. Idu pod mojim imenom, pa svaki mora stajati.',
+      'Za svaki komentar:',
+      '- u radnom folderu (kod PR-a) otvori kod na koji se odnosi i sve što komentar tvrdi o drugom kodu: tko zove metodu, što radi metoda koju kod zove, konfiguraciju, testove. Provjeri tvrdnju u kodu (Read, Grep); ne zaključuj po imenima;',
+      '- komentar često ima više tvrdnji (što se događa, u kojem slučaju, koji status ili vrijednost, tko je pogođen): provjeri svaku posebno, ne samo glavnu misao;',
+      '- ako komentar predlaže izmjenu, provjeri i tko koristi taj rezultat i bi li mu izmjena nešto pokvarila;',
+      '- presudi: "stoji", "djelomicno" (dio tvrdnje je kriv, prejak ili zastario) ili "ne_stoji";',
+      '- ako nije "stoji", u text napiši ispravljenu verziju istim tonom; prazno ako komentar treba maknuti;',
+      '- označi ako govori isto što drugi moj komentar ili nacrt iz reviewa (duplicate: "#broj" ili "nalaz <id>"), ili ako proturječi drugom komentaru (conflict: "#broj").',
+      'Komentar koji je pitanje autoru stoji ako je pitanje smisleno i odgovor nije već u kodu ili raspravi. Ne dodaji nove komentare.',
+      'Vrati SAMO JSON, bez teksta oko njega:',
+      '{"results": [{"n": <broj komentara>, "verdict": "stoji|djelomicno|ne_stoji", "why": "<jedna do dvije rečenice za mene>", "evidence": "<fajl:linija koje si pročitao, odvojeno zarezom>", "text": "<ispravljen tekst ili prazno>", "duplicate": "<#broj, nalaz <id> ili prazno>", "conflict": "<#broj ili prazno>"}]}',
+      '',
+      askTone(),
+      '',
+      `Moji komentari (${list.length}):`,
+      comments.join('\n\n'),
+      drafts.length ? `\nNacrti komentara iz /pr-review koji još nisu objavljeni:\n${drafts.join('\n')}` : '',
+      talk ? `\nOtvorena rasprava na PR-u:\n${talk}` : '',
+    ].filter((x, i, a) => x !== '' || a[i - 1] !== '').join('\n');
+  }
+  function checkApply(list, json) {
+    let results;
+    try { results = JSON.parse(json.slice(json.indexOf('{'), json.lastIndexOf('}') + 1)).results; } catch { results = null; }
+    const said = json.trim();
+    if (!Array.isArray(results)) return said && !said.includes('{') ? `Claude nije provjerio komentare, nego je odgovorio: „${said.slice(0, 200)}”` : 'Claude nije vratio rezultat provjere. Probaj ponovno.';
+    const at = new Date().toISOString(), count = { stoji: 0, djelomicno: 0, ne_stoji: 0 };
+    const where = ref => String(ref || '').trim().replace(/#(\d+)/g, (m, n) => list[n - 1] ? `${list[n - 1].file.split('/').pop()}:${list[n - 1].line}` : m);
+    results.forEach(r => {
+      const c = list[parseInt(r?.n, 10) - 1], verdict = CHECK_LOOK[r?.verdict] ? r.verdict : null;
+      if (!c || !verdict) return;
+      count[verdict]++;
+      c.check = { head: META.head, text: c.text, at, verdict, why: String(r.why || '').trim(), evidence: String(r.evidence || '').trim(), duplicate: where(r.duplicate), conflict: where(r.conflict) };
+      const text = String(r.text || '').trim();
+      if (verdict !== 'stoji' && text && text !== c.text.trim()) c.suggested = { text, at, why: c.check.why, fromCheck: true };
+    });
+    store.save(saved);
+    const checked = count.stoji + count.djelomicno + count.ne_stoji, toFix = count.djelomicno + count.ne_stoji;
+    return `Provjereno ${checked} od ${list.length}: ${count.stoji} stoji, ${count.djelomicno} djelomično, ${count.ne_stoji} ne stoji.`
+      + (toFix ? ' Ispravke su uz komentare (Zamijeni / Zadrži moj).' : '');
+  }
+  function checkShowStatus() {
+    const line = document.querySelector('#pgv .check-status');
+    if (line) line.textContent = check.status || check.note;
+    else if (pgvIsOpen()) pgvRender();
+  }
+  async function checkRun() {
+    if (check.busy) { check.ctrl?.abort(); return; }
+    const list = checkReady();
+    check.note = !list.length ? 'Nema komentara spremnih za slanje.' : !askCfg.key ? 'Upiši ključ pomoćnika (✦ uz liniju koda, pa ⚙), pa probaj ponovno.' : '';
+    if (!check.note && !(await askPing())) check.note = 'Pomoćnik se ne javlja. Pokreni ga u folderu repoa (python pr-walkthrough-ask.py) pa probaj ponovno.';
+    if (check.note) { pgvRender(); return; }
+    check.busy = true; check.ctrl = new AbortController();
+    check.status = `Claude provjerava ${list.length} ${hrPlural(list.length, 'komentar', 'komentara', 'komentara')} u kodu, obično nekoliko minuta…`;
+    pgvRender();
+    let json = '', steps = 0, err = '';
+    try {
+      const checkPr = askPr().replace('@', ':provjera@');
+      await fetch(ASK_URL + '/reset', { method: 'POST', body: JSON.stringify({ key: askCfg.key, pr: checkPr }), signal: check.ctrl.signal });
+      const body = { key: askCfg.key, pr: checkPr, prime: askPrime(), prompt: checkPrompt(list), base: '', speed: 'deep' };
+      err = await askStream(body, check.ctrl.signal, ev => {
+        if (!ev) return checkShowStatus();
+        if (ev.t === 'text') json += ev.d;
+        else if (ev.t === 'tool') check.status = `Provjera: ${askStep(ev, ++steps)}`;
+        else if (ev.t === 'error') err = ev.m;
+      });
+      if (err === 'key') err = 'Pogrešan ključ pomoćnika. Upiši onaj koji pomoćnik ispiše.';
+    } catch (e) {
+      err = e.name === 'AbortError' ? 'Provjera zaustavljena.' : 'Pomoćnik se ne javlja. Je li pokrenut?';
+    } finally {
+      check.busy = false; check.status = '';
+    }
+    check.note = err || checkApply(list, json);
+    renderMine();
+    refreshMyCount();
+  }
   /* ===== Delta: tour osvježen na novi commit (delta.py). Linija starog heada → linija novog; "changed" = kod ispod se promijenio. ===== */
   function deltaMap(path, line) {
     const hunks = DELTA.files?.[path]?.hunks;
@@ -2655,7 +2798,171 @@
   const findById = id => FIND.find(f => f.id === id);
   function hostName() { return META.host === 'bitbucket' ? 'Bitbucket' : META.host === 'azure' ? 'Azure DevOps' : 'GitHub'; }
   const myGenerals = () => Object.entries(saved.generals).map(([id, g]) => ({ id, ...g }));
-  function renderMine() {
+  /* ===== Slanje na GitHub ili Bitbucket: odabrani komentari idu kroz lokalni pomoćnik tek kad klikneš Pošalji.
+     Pomoćnik prvo javi što je već na PR-u i odbije ako se PR pomaknuo od stranice. ===== */
+  const postCanSend = () => (META.host === 'github' || META.host === 'bitbucket') && !!META.repo && !!META.number;
+  const isDraft = c => !!(c.ai && !c.reviewed);
+  const unsentComments = () => [...myComments().filter(c => !c.posted), ...myGenerals().filter(g => !g.posted)];
+  function postItems() {
+    const out = myComments().filter(c => !c.posted).map(c => {
+      const f = c.finding ? findById(c.finding) : null;
+      return { key: ckey(c.file, c.side, c.line), kind: f?.replyTo ? 'reply' : 'inline', path: c.file, line: c.line, side: c.side === 'base' ? 'LEFT' : 'RIGHT',
+               body: c.text, replyTo: f?.replyTo || null, manifest: f?.manifest || null, finding: c.finding || null, unreviewed: isDraft(c), verified: checkOf(c) };
+    });
+    myGenerals().filter(g => !g.posted).forEach(g => {
+      const f = findById(g.id);
+      out.push({ key: 'G:' + g.id, kind: f?.replyTo ? 'reply' : 'general', body: g.text, replyTo: f?.replyTo || null, manifest: f?.manifest || null, finding: g.id, title: f?.title, unreviewed: isDraft(g) });
+    });
+    return out;
+  }
+  function postMark(it, res) {
+    const posted = { id: res.id, url: res.url, at: new Date().toISOString() };
+    if (it.key.startsWith('G:')) { if (saved.generals[it.key.slice(2)]) saved.generals[it.key.slice(2)].posted = posted; }
+    else if (it.key.startsWith('F:')) saved.findings[it.key.slice(2)] = 'posted';
+    else if (saved.comments[it.key]) saved.comments[it.key].posted = posted;
+  }
+  async function postCall(items, dry) {
+    const r = await fetch(ASK_URL + '/post', { method: 'POST', body: JSON.stringify({ key: askCfg.key, pr: askPr(), host: META.host, slug: META.repo, number: META.number, head: META.head, dry, items }) });
+    const body = await r.json().catch(() => ({}));
+    if (r.status === 403) throw new Error('Pogrešan ključ pomoćnika.');
+    if (!r.ok) throw new Error(body.error || `Pomoćnik je vratio grešku (${r.status}).`);
+    return body;
+  }
+  async function postOpen() {
+    document.querySelector('.post-dlg')?.remove();
+    const dlg = el('div', 'post-dlg'), card = el('div', 'post-card'), head = el('header'), body = el('div', 'post-body'), foot = el('footer');
+    const close = el('button', 'x', '×');
+    close.type = 'button';
+    close.title = 'Zatvori (Esc)';
+    const shut = () => { dlg.remove(); document.removeEventListener('keydown', onKey, true); renderMine(); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); shut(); } };
+    close.addEventListener('click', shut);
+    dlg.addEventListener('click', e => { if (e.target === dlg) shut(); });
+    document.addEventListener('keydown', onKey, true);
+    const who = el('span', 'who', '');
+    head.append(el('h3', null, `Pošalji na ${hostName()}`), who, close);
+    card.append(head, body, foot);
+    dlg.append(card);
+    document.body.append(dlg);
+    const msg = (text, bad) => { const m = el('div', 'post-msg' + (bad ? ' bad' : ''), text); body.prepend(m); return m; };
+    if (!askCfg.key || !(await askPing())) {
+      msg('Slanje ide preko lokalnog pomoćnika (pr-walkthrough-ask.py), a on se ne javlja. Pokreni ga i upiši ključ u "Pitaj Claude", pa probaj opet.', true);
+      return;
+    }
+    const items = postItems();
+    if (!items.length) { msg(`Nema ničega za slanje: svi tvoji komentari su već na ${hostName()}u.`); return; }
+    const wait = msg('Provjeravam što je već na PR-u…');
+    let check;
+    try { check = await postCall(items, true); } catch (e) { wait.remove(); msg(e.message, true); return; }
+    wait.remove();
+    who.textContent = `šalje se kao ${check.login}`;
+    items.forEach(it => { if (check.items?.[it.key]?.status === 'posted') postMark(it, check.items[it.key]); });
+    store.save(saved);
+    const already = items.filter(it => check.items?.[it.key]?.status === 'posted').length;
+    if (check.moved) {
+      msg(`PR se pomaknuo: na ${hostName()}u je ${String(check.head).slice(0, 7)}, a stranica je na ${String(META.head).slice(0, 7)}. Osvježi stranicu prije slanja, da komentari sjednu na prave linije.`, true);
+      return;
+    }
+    if (already) msg(`${already} ${hrPlural(already, 'komentar je', 'komentara su', 'komentara je')} već na ${hostName()}u; označio sam ${already === 1 ? 'ga' : 'ih'} kao ${already === 1 ? 'poslan' : 'poslane'}.`);
+    const todo = items.filter(it => check.items?.[it.key]?.status !== 'posted');
+    if (!todo.length) { msg(`Sve je već na ${hostName()}u.`); return; }
+    const rows = new Map();
+    const group = (title, list) => {
+      if (!list.length) return null;
+      const grp = el('div', 'post-grp', `${title} · ${list.length}`);
+      body.append(grp);
+      list.forEach(it => {
+        const st = check.items?.[it.key]?.status, row = el('label', 'post-it'), cb = el('input'), where = el('div', 'where'), txt = el('div', 'txt');
+        cb.type = 'checkbox';
+        cb.checked = st !== 'mine-there' && !it.unreviewed && it.verified?.verdict !== 'ne_stoji';
+        if (it.kind === 'general') where.append(it.title || 'Općeniti komentar na PR');
+        else if (it.path) where.append(`${it.path.split('/').pop()}:${it.line}`);
+        if (it.kind === 'reply') where.append(el('em', 'reply', 'odgovor u postojećoj niti'));
+        if (st === 'mine-there') where.append(el('em', 'warn', 'na ovoj liniji već imaš komentar (možda drukčiji tekst)'));
+        if (it.finding) where.append(el('em', null, `iz nalaza ${it.finding}`));
+        if (it.unreviewed) where.append(el('em', 'warn', '✦ nacrt iz razgovora, nisi ga pregledao'));
+        if (it.verified) where.append(el('em', it.verified.verdict === 'stoji' ? null : 'warn', it.verified.fixed ? 'provjera: ispravljeno' : `provjera: ${CHECK_LOOK[it.verified.verdict][1]}`));
+        else if (it.kind === 'inline' && !it.unreviewed) where.append(el('em', null, 'nije provjereno'));
+        txt.innerHTML = commentMd(it.body);
+        row.append(cb, where, txt);
+        if (it.body.length > 400 || it.body.split('\n').length > 6) {
+          const more = el('button', 'more', 'prikaži sve');
+          more.type = 'button';
+          more.addEventListener('click', e => { e.preventDefault(); txt.classList.toggle('all'); more.textContent = txt.classList.contains('all') ? 'skupi' : 'prikaži sve'; });
+          row.append(more);
+        }
+        cb.addEventListener('change', () => { row.classList.toggle('off', !cb.checked); sync(); });
+        row.classList.toggle('off', !cb.checked);
+        rows.set(it.key, { it, cb, where });
+        body.append(row);
+      });
+      return grp;
+    };
+    const ready = todo.filter(it => !it.unreviewed), drafts = todo.filter(it => it.unreviewed);
+    group('Na liniji koda', ready.filter(it => it.kind === 'inline'));
+    group('Odgovori u postojećim nitima', ready.filter(it => it.kind === 'reply'));
+    group('Općeniti komentari na PR', ready.filter(it => it.kind === 'general'));
+    const draftGrp = group('Nacrti, nisi ih pregledao', drafts);
+    if (draftGrp) {
+      const pickAll = el('button', null, 'označi sve');
+      pickAll.type = 'button';
+      pickAll.addEventListener('click', () => drafts.forEach(it => {
+        const cb = rows.get(it.key).cb;
+        if (!cb.disabled && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+      }));
+      draftGrp.append(pickAll);
+    }
+    const hint = el('span', 'hint', 'Komentari na liniji idu kao jedan review. Ništa se ne šalje dok ne klikneš.');
+    const cancel = el('button', null, 'Odustani'), send = el('button', 'primary', '');
+    cancel.type = send.type = 'button';
+    cancel.addEventListener('click', shut);
+    const picked = () => [...rows.values()].filter(r => r.cb.checked).map(r => r.it);
+    const sync = () => { const n = picked().length; send.textContent = `Pošalji odabrane (${n})`; send.disabled = !n; };
+    foot.append(hint, cancel, send);
+    sync();
+    send.addEventListener('click', async () => {
+      const chosen = picked();
+      send.disabled = cancel.disabled = true;
+      send.textContent = 'Šaljem…';
+      rows.forEach(r => { r.cb.disabled = true; });
+      let res;
+      try { res = await postCall(chosen, false); } catch (e) { msg(e.message, true); send.textContent = 'Pošalji odabrane'; cancel.disabled = false; return; }
+      if (res.moved) { msg(`PR se pomaknuo u međuvremenu (${String(res.head).slice(0, 7)}). Ništa nije poslano; osvježi stranicu.`, true); cancel.disabled = false; send.textContent = 'Nije poslano'; return; }
+      let ok = 0, bad = 0;
+      chosen.forEach(it => {
+        const r = res.items?.[it.key], row = rows.get(it.key);
+        if (r && (r.status === 'sent' || r.status === 'posted')) {
+          postMark(it, r);
+          ok++;
+          const a = el('a', null, '✓ poslano ↗');
+          a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
+          const em = el('em', 'ok'); em.append(a);
+          row.where.append(em);
+        } else {
+          bad++;
+          row.where.append(el('em', 'err', '✕ ' + (r?.error || 'nije poslano')));
+          row.cb.disabled = false;
+        }
+      });
+      store.save(saved);
+      syncTreeMarks();
+      syncActBar();
+      msg(bad ? `Poslano ${ok}, nije ${bad}. Neposlani su označeni crveno; ostaju na stranici.` : `Poslano ${ok} ${hrPlural(ok, 'komentar', 'komentara', 'komentara')} na ${hostName()}.`, bad > 0);
+      send.textContent = 'Gotovo';
+      cancel.textContent = 'Zatvori';
+      cancel.disabled = false;
+    });
+  }
+  function postButton() {
+    const unsent = unsentComments(), n = unsent.filter(c => !isDraft(c)).length, drafts = unsent.length - n;
+    const b = el('button', 'post-open', `Pošalji ${drafts ? 'spremne ' : ''}na ${hostName()}${n ? ` (${n})` : ''}`);
+    b.type = 'button';
+    b.title = drafts
+      ? `Spremni su u prozoru odmah označeni. Nacrte (${drafts}) možeš dodati ručno. Ništa ne ide bez tvog klika.`
+      : 'Odaberi koje komentare poslati na PR. Ništa ne ide bez tvog klika.';
+    b.addEventListener('click', e => { e.stopPropagation(); postOpen(); });
+    return b;
+  }  function renderMine() {
     if (view) renderView(null, drawer.scrollTop);
     if (mode === 'pregled') renderOverview();
     if (rvvIsOpen()) rvvRender();
@@ -2691,13 +2998,22 @@
     const text = el('div', 'my-comment-text');
     text.innerHTML = commentMd(c.text);
     box.append(head, text);
-    if (c.ai && !c.reviewed && c.why) box.append(el('div', 'ai-why', 'zašto: ' + c.why));
+    if (c.ai && !c.reviewed && (c.why || c.evidence)) box.append(el('div', 'ai-why', [c.why && 'zašto: ' + c.why, c.evidence && 'provjereno u: ' + c.evidence].filter(Boolean).join(' · ')));
+    const verified = checkOf(c);
+    if (verified) box.append(checkView(verified));
+    else if (c.check && !c.posted) box.append(el('div', 'check-result stale', 'Provjera je bila za stariju verziju komentara ili PR-a. Pokreni „Provjeri spremne” ponovno.'));
     if (c.suggested) {
       const sg = el('div', 'ai-suggest'), st = el('div', 'my-comment-text'), bar = el('div', 'ai-suggest-bar');
       st.innerHTML = commentMd(c.suggested.text);
       const take = el('button', 'primary', 'Zamijeni'), keep = el('button', null, 'Zadrži moj');
       take.type = keep.type = 'button';
-      take.addEventListener('click', e => { e.stopPropagation(); c.text = c.suggested.text; c.reviewed = true; delete c.suggested; c.at = new Date().toISOString(); store.save(saved); renderMine(); });
+      take.addEventListener('click', e => {
+        e.stopPropagation();
+        const fromCheck = c.suggested.fromCheck && checkOf(c);
+        c.text = c.suggested.text; c.reviewed = true; delete c.suggested; c.at = new Date().toISOString();
+        if (fromCheck) c.check = { ...c.check, text: c.text, verdict: 'stoji', fixed: true };
+        store.save(saved); renderMine();
+      });
       keep.addEventListener('click', e => { e.stopPropagation(); delete c.suggested; store.save(saved); renderMine(); });
       bar.append(take, keep);
       sg.append(el('div', 'my-comment-head', '✦ Claude predlaže novu verziju'), st);
@@ -3707,6 +4023,10 @@
       mine.length ? `Komentari koje je reviewer koji te pita napisao u touru za ovaj fajl (još neobjavljeni):\n${mine.join('\n')}` : '',
     ].filter(Boolean).join('\n');
   }
+  function askMineElsewhere(file) {
+    const other = myComments().filter(c => c.file !== file).map(c => `- ${c.file}:${c.line}: ${c.text.replace(/\s+/g, ' ').slice(0, 300)}`);
+    return other.length ? `Moji komentari u drugim fajlovima ovog PR-a:\n${other.join('\n')}` : '';
+  }
   function askTone() {
     return TONE ? `Ton komentara: tekst ide na PR pod mojim imenom, pa ga piši po ovim pravilima i primjerima:\n${TONE}` : '';
   }
@@ -3959,9 +4279,9 @@
     const a = ask, turn = a.turns[a.turns.length - 1];
     const prompt = turn.prompt || (!a.sent ? askPrompt(a) : a.talkSent ? `(Isti kod kao maloprije.) ${turn.q}` : `(Isti kod kao maloprije.) ${askTalk(a.file)}\n\nPitanje: ${turn.q}`);
     a.talkSent = true;
-    const body = { key: askCfg.key, pr: askPr(), prime: askPrime(), prompt, base: askCfg.session || '', speed: askCfg.speed || 'fast' };
+    const body = { key: askCfg.key, pr: askPr(), prime: askPrime(), prompt, base: askCfg.session || '', speed: turn.speed || askCfg.speed || 'fast' };
     turn.steps = 0;
-    const reading = turn.make ? 'Claude pregledava kod i piše nacrte, obično pola minute do minutu…' : 'Claude čita kod…';
+    const reading = turn.make ? 'Claude pregledava kod, provjerava ga u drugim fajlovima i piše nacrte, obično par minuta…' : 'Claude čita kod…';
     a.busy = true; a.ctrl = new AbortController(); turn.a = ''; turn.json = ''; turn.err = ''; turn.stopped = false; turn.at = Date.now(); turn.status = reading;
     askRender();
     try {
@@ -4014,7 +4334,7 @@ ${askTone()}` });
     askAbout(file, side, null);
     const a = ask;
     if (!a || a.busy) return;
-    a.turns.push({ q: 'Predloži komentare za ovaj fajl', a: '', make: true, prompt: `Pregledaj ${file} iz PR-a ${META.repo || ''}#${META.number || ''} kao reviewer i predloži komentare za PR.
+    a.turns.push({ q: 'Predloži komentare za ovaj fajl', a: '', make: true, speed: 'deep', prompt:`Pregledaj ${file} iz PR-a ${META.repo || ''}#${META.number || ''} kao reviewer i predloži komentare za PR.
 Linije s + su nove ili promijenjene u PR-u: komentiraj njih (i ono što one diraju), ne stari kod.
 Što gledam:
 - imena: svako ime odgovara na "čega?", domenski glagoli umjesto CRUD-a, bez Get na metodama koje samo računaju, ime otkriva ono što čitatelj ne bi očekivao;
@@ -4023,13 +4343,16 @@ Linije s + su nove ili promijenjene u PR-u: komentiraj njih (i ono što one dira
 - testovi: nedostaje li test za stvarni rizik u ovom fajlu;
 - pitanja autoru kad nešto nije jasno (zašto ovdje, treba li ovo);
 - bug samo ako si siguran, s konkretnim scenarijem.
-Ne ponavljaj ono što već postoji: rasprava na PR-u, moji komentari i nalazi reviewa su ispod. Najviše 8 komentara, važniji prvi. Ako nema ničeg vrijednog, vrati prazan popis.
+Radni folder je kod PR-a. Prije svake tvrdnje o kodu izvan ovog fajla (tko zove ovu metodu, što radi metoda koju ovaj kod zove, konfiguracija, testovi) otvori taj kod (Read, Grep) i provjeri ga; ne pretpostavljaj kako nešto radi po imenu. Što nisi mogao potvrditi u kodu, napiši kao pitanje autoru, ne kao tvrdnju.
+Ne ponavljaj ono što već postoji: rasprava na PR-u, moji komentari i nalazi reviewa su ispod. Ne proturječi mojim komentarima u drugim fajlovima. Najviše 8 komentara, važniji prvi. Ako nema ničeg vrijednog, vrati prazan popis.
 Vrati SAMO JSON, bez teksta oko njega:
-{"comments": [{"line": <broj linije iz koda ispod>, "text": "<komentar točno kako ide na PR>", "why": "<jedna kratka rečenica za mene: zašto>"}]}
+{"comments": [{"line": <broj linije iz koda ispod>, "text": "<komentar točno kako ide na PR>", "why": "<jedna kratka rečenica za mene: zašto>", "evidence": "<fajl:linija koju si pročitao i koja potvrđuje tvrdnju; prazno ako je komentar pitanje>"}]}
 
 ${askTone()}
 
 ${askTalk(file)}
+
+${askMineElsewhere(file)}
 
 Nalazi reviewa za ovaj fajl (ne ponavljaj):
 ${found || '(nema)'}
@@ -4048,12 +4371,12 @@ ${code}
     if (!Array.isArray(list)) { turn.err = 'Claude nije vratio popis komentara. Probaj ponovno ili ih upiši ručno.'; turn.a = turn.json; return; }
     const side = a.side || 'head', lines = linesOf(a.file, side) || [], made = [], suggested = [], skipped = [];
     list.forEach(x => {
-      const n = parseInt(x?.line, 10), text = String(x?.text || '').trim(), why = String(x?.why || '').trim();
+      const n = parseInt(x?.line, 10), text = String(x?.text || '').trim(), why = String(x?.why || '').trim(), evidence = String(x?.evidence || '').trim();
       if (!text || !(n >= 1 && n <= lines.length)) { skipped.push(x?.line ?? '?'); return; }
       const key = ckey(a.file, side, n), existing = saved.comments[key];
-      if (existing && existing.text.trim() !== text) { existing.suggested = { text, at: new Date().toISOString(), ...(why ? { why } : {}) }; suggested.push(n); return; }
+      if (existing && existing.text.trim() !== text) { existing.suggested = { text, at: new Date().toISOString(), ...(why ? { why } : {}), ...(evidence ? { evidence } : {}) }; suggested.push(n); return; }
       if (existing) return;
-      saved.comments[key] = { file: a.file, side, line: n, code: lines[n - 1] || '', text, panel: null, panelTitle: '', at: new Date().toISOString(), ai: true, ...(why ? { why } : {}) };
+      saved.comments[key] = { file: a.file, side, line: n, code: lines[n - 1] || '', text, panel: null, panelTitle: '', at: new Date().toISOString(), ai: true, ...(why ? { why } : {}), ...(evidence ? { evidence } : {}) };
       made.push(n);
     });
     store.save(saved);
@@ -4975,7 +5298,12 @@ ${code}
       const lines = myComments().slice().sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line).map(c => ({
         id: ckey(c.file, c.side, c.line), group: c.file.split('/').pop(), state: state(c), t: pgvFirstLine(c.text), w: `linija ${c.line}${c.side === 'base' ? ' (stari kod)' : ''}`, c }));
       const general = myGenerals().map(g => ({ id: 'G:' + g.id, group: 'Općeniti komentari', state: state(g), t: findById(g.id)?.title || pgvFirstLine(g.text), w: 'bez linije', g }));
-      return [...general, ...lines].map(x => ({ ...x, ic: PGV_STATE[x.state][0], st: PGV_STATE[x.state][1] }));
+      return [...general, ...lines].map(x => {
+        const verified = x.c && !x.c.posted && checkOf(x.c);
+        if (!verified) return { ...x, ic: PGV_STATE[x.state][0], st: PGV_STATE[x.state][1] };
+        const [icon, label] = CHECK_LOOK[verified.verdict];
+        return { ...x, ic: icon, st: `${PGV_STATE[x.state][1]} · ${verified.fixed ? 'ispravljeno' : label}`, verdict: verified.verdict };
+      });
     }
     if (kind === 'watch') return [...document.querySelectorAll('[id^="paziti-"]')].map((li, i) => {
       const strong = li.querySelector('strong');
@@ -5003,15 +5331,22 @@ ${code}
         filters.append(b);
       });
       head.append(filters);
-        const exp = el('button', 'export-btn', 'Izvezi ↓');
+      const verify = el('button', 'export-btn', check.busy ? 'Zaustavi provjeru' : '✦ Provjeri spremne');
+      verify.type = 'button';
+      verify.title = 'Claude u kodu provjeri svaki komentar spreman za slanje: stoji li, ponavlja li se, proturječi li drugom. Ništa ne šalje.';
+      verify.addEventListener('click', checkRun);
+      const exp = el('button', 'export-btn', 'Izvezi ↓');
       exp.addEventListener('click', exportComments);
+      if (all.length) head.append(verify);
+      if (postCanSend()) head.append(postButton());
       if (all.length) head.append(exp);
+      if (check.status || check.note) head.append(el('div', 'check-status', check.status || check.note));
     }
     const body = el('div', 'rvw-body'), list = el('div', 'rvw-list'), detail = el('div', 'rvw-detail');
     let group = null;
     shown.forEach(x => {
       if (x.group && x.group !== group) { group = x.group; list.append(el('div', 'rvw-grp', group)); }
-      const b = el('button', `rvw-item ${x.state || ''}${x.id === pgv.sel[kind] ? ' sel' : ''}`);
+      const b = el('button', `rvw-item ${x.state || ''}${x.verdict ? ' v-' + x.verdict : ''}${x.id === pgv.sel[kind] ? ' sel' : ''}`);
       b.type = 'button';
       b.append(el('span', 'ic', x.ic), el('span', 't', x.t), el('span', 'st', x.st), el('span', 'w', x.w));
       b.addEventListener('click', () => { pgv.sel[kind] = x.id; pgvRender(); });
@@ -5114,6 +5449,7 @@ ${code}
       head.append(vd);
     }
     if (findStale) head.append(el('em', 'fd-moved', `review @${FINDINGS.head.slice(0, 7)}`));
+    if (postCanSend()) head.append(postButton());
     const filters = el('div', 'rvw-filters');
     const count = st => FIND.filter(f => st === 'all' || findState(f) === st).length;
     [['open', 'otvoreni'], ['taken', 'uzeti'], ['dropped', 'odbačeni'], ['all', 'svi']].forEach(([k, label]) => {

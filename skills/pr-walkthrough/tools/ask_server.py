@@ -13,9 +13,15 @@ to a copy of the PR's code: the commit the page was made from is extracted from 
 touched. Without that commit locally it reads the repo folder. It can read the code, never change files or run commands. Answers stream back as JSON lines:
 session, text, tool, done or error.
 
-It never writes to the PR: POST /discussion only reads a GitHub PR's threads again with the gh CLI.
+POST /discussion only reads a GitHub PR's threads again with the gh CLI.
+
+POST /post sends the reviewer's own comments to the GitHub or Bitbucket PR, only when the reviewer clicks Send on the page:
+GitHub through the gh CLI (whoever gh is logged in as), inline comments as one review; Bitbucket with the same environment
+variables as pr-review (BITBUCKET_<WORKSPACE>_EMAIL, reads with _TOKEN, writes only with _TOKEN_WRITE). Claude is not
+involved. It first reports what is already on the PR, and refuses when the PR head moved past the page.
 """
 import argparse
+import base64
 import hmac
 import http.server
 import io
@@ -30,7 +36,9 @@ import sys
 import tarfile
 import threading
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 
 HOME = pathlib.Path.home() / '.pr-walkthrough'
 KEY_FILE = HOME / 'ask-key'
@@ -347,6 +355,210 @@ class Server(http.server.ThreadingHTTPServer):
             SESSION_DIRS_FILE.write_text(json.dumps(self.session_dirs, indent=1), encoding='utf-8')
 
 
+def _gh(*args, payload=None):
+    gh = shutil.which('gh')
+    r = subprocess.run([gh, 'api', *args, *(['--input', '-'] if payload is not None else [])], capture_output=True, text=True, encoding='utf-8',
+                       input=json.dumps(payload) if payload is not None else None, timeout=60)
+    try:
+        body = json.loads(r.stdout) if r.stdout.strip() else None
+    except ValueError:
+        body = None
+    return r.returncode == 0, body, (r.stderr or r.stdout).strip()[:300]
+
+
+def _gh_pages(path):
+    out = []
+    for page in range(1, 20):
+        ok, chunk, _ = _gh(f'{path}?per_page=100&page={page}')
+        chunk = chunk if ok and isinstance(chunk, list) else []
+        out += chunk
+        if len(chunk) < 100:
+            return out
+    return out
+
+
+def _same(a, b):
+    return ' '.join(str(a or '').split()) == ' '.join(str(b or '').split())
+
+
+def github_post(slug, number, head, items, dry):
+    """What of the tour's comments is already on the PR (dry), or send the given ones. Items: key, kind inline|reply|general,
+    path, line, side LEFT|RIGHT, body, replyTo."""
+    if not shutil.which('gh') or not re.fullmatch(r'[\w.-]+/[\w.-]+', str(slug or '')) or not str(number).isdigit():
+        return None
+    ok, pr, err = _gh(f'repos/{slug}/pulls/{number}')
+    if not ok:
+        return {'error': f'PR nije dohvaćen: {err}'}
+    pr_head = pr['head']['sha']
+    login = (_gh('user')[1] or {}).get('login', '?')
+    result = {'login': login, 'head': pr_head, 'moved': bool(head) and not pr_head.startswith(str(head))}
+    review = _gh_pages(f'repos/{slug}/pulls/{number}/comments')
+    general = _gh_pages(f'repos/{slug}/issues/{number}/comments')
+    mine = [c for c in review if c['user']['login'] == login]
+    status = {}
+    for it in items:
+        k, body = it.get('key'), it.get('body')
+        if it.get('kind') == 'reply':
+            found = next((c for c in mine if (c.get('in_reply_to_id') or c['id']) == it.get('replyTo') and _same(c['body'], body)), None)
+            there = False
+        elif it.get('kind') == 'general':
+            found = next((c for c in general if c['user']['login'] == login and _same(c['body'], body)), None)
+            there = False
+        else:
+            at = [c for c in mine if c['path'] == it.get('path') and (c.get('line') or c.get('original_line')) == it.get('line')]
+            found = next((c for c in at if _same(c['body'], body)), None)
+            there = bool(at)
+        status[k] = {'status': 'posted', 'id': found['id'], 'url': found['html_url']} if found else {'status': 'mine-there' if there else 'new'}
+    if dry or result['moved']:
+        result['items'] = status
+        return result
+    sent = {}
+
+    def done(it, c):
+        sent[it['key']] = {'status': 'sent', 'id': c['id'], 'url': c['html_url']}
+
+    todo = [it for it in items if status.get(it.get('key'), {}).get('status') != 'posted']
+    inline = [it for it in todo if it.get('kind') == 'inline']
+    if inline:
+        ok, rv, err = _gh('-X', 'POST', f'repos/{slug}/pulls/{number}/reviews', payload={
+            'commit_id': pr_head, 'event': 'COMMENT', 'body': '',
+            'comments': [{'path': it['path'], 'line': it['line'], 'side': it.get('side') or 'RIGHT', 'body': it['body']} for it in inline]})
+        if ok:
+            created = _gh_pages(f"repos/{slug}/pulls/{number}/reviews/{rv['id']}/comments")
+            for it in inline:
+                c = next((c for c in created if c['path'] == it['path'] and _same(c['body'], it['body'])), None)
+                if c:
+                    done(it, c)
+                else:
+                    sent[it['key']] = {'status': 'error', 'error': 'poslano, ali komentar nije pronađen u reviewu'}
+        else:
+            for it in inline:
+                ok, c, err = _gh('-X', 'POST', f'repos/{slug}/pulls/{number}/comments', payload={
+                    'commit_id': pr_head, 'path': it['path'], 'line': it['line'], 'side': it.get('side') or 'RIGHT', 'body': it['body']})
+                if ok:
+                    done(it, c)
+                else:
+                    sent[it['key']] = {'status': 'error', 'error': err}
+    for it in todo:
+        if it.get('kind') == 'reply':
+            ok, c, err = _gh('-X', 'POST', f"repos/{slug}/pulls/{number}/comments/{int(it['replyTo'])}/replies", payload={'body': it['body']})
+        elif it.get('kind') == 'general':
+            ok, c, err = _gh('-X', 'POST', f'repos/{slug}/issues/{number}/comments', payload={'body': it['body']})
+        else:
+            continue
+        if ok:
+            done(it, c)
+        else:
+            sent[it['key']] = {'status': 'error', 'error': err}
+    result['items'] = {**{k: v for k, v in status.items() if v['status'] == 'posted'}, **sent}
+    return result
+
+
+BITBUCKET_API = 'https://api.bitbucket.org/2.0'
+
+
+def environment_value(name):
+    """A process variable, else on Windows the user's saved one, so a helper started before the variable was set still finds it."""
+    value = os.environ.get(name)
+    if value or sys.platform != 'win32':
+        return value
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as key:
+            return winreg.QueryValueEx(key, name)[0]
+    except OSError:
+        return None
+
+
+def _bb(slug, path, write=False, payload=None):
+    """One Bitbucket API call: (ok, data, error). Reads with the workspace's read token, writes only with its write token."""
+    ws = re.sub(r'\W', '_', slug.split('/')[0]).upper()
+    email = environment_value(f'BITBUCKET_{ws}_EMAIL')
+    token = environment_value(f'BITBUCKET_{ws}_TOKEN_WRITE') if write else environment_value(f'BITBUCKET_{ws}_TOKEN') or environment_value(f'BITBUCKET_{ws}_TOKEN_WRITE')
+    if not email or not token:
+        return False, None, f"nema tokena BITBUCKET_{ws}_EMAIL / BITBUCKET_{ws}_{'TOKEN_WRITE' if write else 'TOKEN'}"
+    url = path if path.startswith(BITBUCKET_API) else BITBUCKET_API + (path if path.startswith('/') else f'/repositories/{slug}/{path}')
+    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8') if payload is not None else None, method='POST' if payload is not None else 'GET')
+    req.add_header('Authorization', 'Basic ' + base64.b64encode(f'{email}:{token}'.encode('utf-8')).decode('ascii'))
+    req.add_header('Accept', 'application/json')
+    req.add_header('Content-Type', 'application/json')
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return True, json.loads(r.read().decode('utf-8') or '{}'), ''
+    except urllib.error.HTTPError as e:
+        try:
+            detail = json.loads(e.read().decode('utf-8'))['error']['message']
+        except (ValueError, KeyError, TypeError, OSError):
+            detail = ''
+        return False, None, f'HTTP {e.code} {detail}'.strip()
+    except OSError as e:
+        return False, None, str(e)
+
+
+def _bb_pages(slug, path):
+    out, ok, err = [], True, ''
+    while path and ok:
+        ok, page, err = _bb(slug, path)
+        if ok:
+            out += page.get('values', [])
+            path = page.get('next')
+    return out, err
+
+
+def bitbucket_post(slug, number, head, items, dry):
+    """github_post for Bitbucket: same items, same answer. A comment goes out one by one, each with its own result."""
+    if not re.fullmatch(r'[\w.-]+/[\w.-]+', str(slug or '')) or not str(number).isdigit():
+        return None
+    ok, pr, err = _bb(slug, f'pullrequests/{number}')
+    if not ok:
+        return {'error': f'PR nije dohvaćen: {err}'}
+    pr_head = pr['source']['commit']['hash']
+    me = (_bb(slug, '/user')[1] or {})
+    result = {'login': me.get('display_name') or 'vlasnik tokena', 'head': pr_head, 'moved': bool(head) and not (str(head).startswith(pr_head) or pr_head.startswith(str(head)))}
+    comments, err = _bb_pages(slug, f'pullrequests/{number}/comments?pagelen=100')
+    if err:
+        return {'error': f'Komentari nisu dohvaćeni: {err}'}
+    comments = [c for c in comments if not c.get('deleted')]
+    mine = [c for c in comments if not me.get('account_id') or (c.get('user') or {}).get('account_id') == me['account_id']]
+    text = lambda c: (c.get('content') or {}).get('raw', '')
+    url = lambda c: ((c.get('links') or {}).get('html') or {}).get('href', '')
+
+    def inline_at(c, it):
+        at = c.get('inline') or {}
+        return at.get('path') == it.get('path') and at.get('from' if it.get('side') == 'LEFT' else 'to') == it.get('line')
+
+    status = {}
+    for it in items:
+        k, body = it.get('key'), it.get('body')
+        if it.get('kind') == 'reply':
+            at = [c for c in mine if (c.get('parent') or {}).get('id') == it.get('replyTo')]
+        elif it.get('kind') == 'general':
+            at = [c for c in mine if not c.get('inline') and not c.get('parent')]
+        else:
+            at = [c for c in mine if inline_at(c, it)]
+        found = next((c for c in at if _same(text(c), body)), None)
+        status[k] = {'status': 'posted', 'id': found['id'], 'url': url(found)} if found else {'status': 'mine-there' if at and me.get('account_id') and it.get('kind') == 'inline' else 'new'}
+    if dry or result['moved']:
+        result['items'] = status
+        return result
+    sent = {}
+    for it in items:
+        if status.get(it.get('key'), {}).get('status') == 'posted':
+            continue
+        payload = {'content': {'raw': it['body']}}
+        if it.get('kind') == 'reply':
+            payload['parent'] = {'id': int(it['replyTo'])}
+        elif it.get('kind') != 'general':
+            payload['inline'] = {'path': it['path'], 'from' if it.get('side') == 'LEFT' else 'to': it['line']}
+        ok, c, err = _bb(slug, f'pullrequests/{number}/comments', write=True, payload=payload)
+        if ok:
+            sent[it['key']] = {'status': 'sent', 'id': c['id'], 'url': url(c)}
+        else:
+            sent[it['key']] = {'status': 'error', 'error': err}
+    result['items'] = {**{k: v for k, v in status.items() if v['status'] == 'posted'}, **sent}
+    return result
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     def cors(self):
         self.send_header('Access-Control-Allow-Origin', '*')
@@ -403,7 +615,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return req
 
     def do_POST(self):
-        if self.path not in ('/ask', '/reset', '/history', '/discussion'):
+        if self.path not in ('/ask', '/reset', '/history', '/discussion', '/post'):
             return self.reply(404, {'error': 'not found'})
         req = self.read_request()
         if req is None:
@@ -411,6 +623,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path == '/discussion':
             found = github_discussion(req.get('slug'), req.get('number'))
             return self.reply(200 if found else 502, found or {'error': 'gh nije dostupan ili PR nije pronađen'})
+        if self.path == '/post':
+            items = [it for it in (req.get('items') or []) if isinstance(it, dict) and str(it.get('body') or '').strip()]
+            post = bitbucket_post if req.get('host') == 'bitbucket' else github_post
+            found = post(req.get('slug'), req.get('number'), str(req.get('head') or ''), items, bool(req.get('dry')))
+            return self.reply(200 if found and not found.get('error') else 502, found or {'error': 'gh nije dostupan ili PR nije pronađen'})
         if self.path == '/history':
             return self.reply(200, {'items': history(self.server.sessions.get(str(req['pr'])))})
         session = self.server.session(str(req['pr']))

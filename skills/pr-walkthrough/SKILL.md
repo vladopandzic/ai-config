@@ -1,6 +1,6 @@
 ---
 name: pr-walkthrough
-description: Walks the user through someone else's pull request so they understand it before reviewing it, as one self-contained HTML page. Explains in plain words what problem it solves and what changes before and after, takes a short tour of the few places in the code that matter in reading order, explains the domain terms and points at where the risk is; the page also shows every changed file with the diff, what kinds of things the PR touches, the PR's status and discussion, and pr-review findings when there are any. Reads only; posts nothing. Uses the pr-review setup (repo list, local clones, repo notes). Use when the user runs /pr-walkthrough, or asks what a PR does or to explain a PR.
+description: Walks the user through someone else's pull request so they understand it before reviewing it, as one self-contained HTML page. Explains in plain words what problem it solves and what changes before and after, takes a short tour of the few places in the code that matter in reading order, explains the domain terms and points at where the risk is; the page also shows every changed file with the diff, what kinds of things the PR touches, the PR's status and discussion, and pr-review findings when there are any. Claude only reads; the page's send button posts the user's own comments to GitHub or Bitbucket when the user picks them and clicks Send. Uses the pr-review setup (repo list, local clones, repo notes). Use when the user runs /pr-walkthrough, or asks what a PR does or to explain a PR.
 ---
 
 # PR walkthrough
@@ -134,9 +134,13 @@ When the PR got new commits since the page was built:
 
 The page has ✦ next to every code line. It asks the viewer's own Claude Code through `tools\ask_server.py`, a small local helper (127.0.0.1, protected by a key it prints) that keeps one read-only session per PR on a copy of the PR's code. The page carries the helper and offers it for download, so a colleague who gets the page can use it too. Without the helper the page works fully and offers "Kopiraj pitanje" instead. Do not start the helper unless the user asks.
 
+"✦ Predloži komentare" asks for comments on one file at the deep speed; each claim about other code must be checked there first and comes back with the file and line it rests on, and what could not be checked comes back as a question. "✦ Provjeri spremne" in Moji komentari checks every comment ready to post in one deep pass: whether it holds, repeats another comment or a pr-review draft, or contradicts another comment. A corrected text shows up next to the comment as Zamijeni / Zadrži moj. The result counts only for that text and that PR head.
+
+"Pošalji na GitHub / Bitbucket" (in Moji komentari, the overview and Code review) opens a list of the user's unposted comments. The helper first reads what is already on the PR and marks comments that are there; ready comments are ticked, drafts and comments the check found wrong are not. Nothing goes out until the user clicks "Pošalji odabrane", and the helper refuses when the PR head moved past the page. GitHub posts through `gh` as whoever is logged in; Bitbucket uses pr-review's variables (`BITBUCKET_<WORKSPACE>_EMAIL`, `_TOKEN` to read, `_TOKEN_WRITE` to post). There is no button for Azure DevOps.
+
 ## Never
 
-- Post anything on the PR or the ticket.
+- Post anything on the PR or the ticket yourself; only the user's own click on the page's send button posts.
 - Check out the PR branch in the user's working tree.
 - Present a guess about intent as fact: the reason comes from the ticket, the description or the code, and otherwise is an open question.
 - Put the user's own name, e-mail or accounts into the page; the harvest's `me` shows as "ti".
