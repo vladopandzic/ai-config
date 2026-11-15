@@ -53,6 +53,10 @@ Adds, checks, removes and applies EF Core migrations in any .NET repo. It finds 
 - `/ef-migration check`: before a PR or after merging the base branch.
 - `/ef-migration remove`, `/ef-migration update [migration]`, `/ef-migration script`
 
+### /plan-review
+
+Makes a plan trustworthy before any code is written: numbered acceptance criteria traced to the ticket and its images, assumptions, the places in the code, a risk check and a test per criterion. Unclear points are answered from the code and history or marked as decisions for a person, then critics in a fresh context check the plan against the ticket and the code, including a pre-mortem, and it is revised.
+
 ### /prepare-pr
 
 Gets the current branch ready for a pull request: runs locally what the repo's CI runs (in a clean clone, with CI's .NET version), checks migrations and submodules, looks through the diff for leftovers and drafts the PR description. It never pushes or opens the PR on its own. `/prepare-pr quick` runs only the tests for the changed projects.
