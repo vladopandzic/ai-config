@@ -67,7 +67,7 @@ Checks that a change does not break apps that talk to each other, in both direct
 
 ### /update-docs
 
-Checks CLAUDE.md, AGENTS.md, repo skills and the build and run parts of the README against the repo as it really is: every path, command, version and setting is checked before it stays. Fixes what is wrong or stale and points out what is missing, such as how to run the app. `/update-docs branch` checks only what the current branch's changes made outdated, as a step before a pull request.
+Keeps CLAUDE.md, repo skills and reference docs true, organised and improving: every path, command, version and setting is checked before it stays, the root CLAUDE.md stays short with topic references in `docs/agents/`, and after each task the lessons it taught are recorded and, once they earn it, promoted into the right file while stale ones are pruned. `/update-docs branch` does this for the current branch before a pull request.
 
 ### /verify-app
 
