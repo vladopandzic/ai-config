@@ -66,7 +66,7 @@ Then wait for an explicit yes for this push. A yes for staging is not a yes for 
 ## 7. Push
 
 - Push the branch, then create and push the annotated tag.
-- Say where to watch the pipeline. On success CI usually makes the final tag and merges the release branch back; check that it did.
+- Hand over to `watch-release` with the tag: it follows the pipeline until it finishes, checks that CI made the final tag and merged the release branch back, and watches the deployed app afterwards.
 - On failure: fix on the same release branch, commit, push, and tag again with the next suffix (`-rc1`, `-rc2`, `-dev1`). Never move, delete or reuse a tag.
 
 ## Never

@@ -57,6 +57,10 @@ Adds, checks, removes and applies EF Core migrations in any .NET repo. It finds 
 
 Gets the current branch ready for a pull request: runs locally what the repo's CI runs (in a clean clone, with CI's .NET version), checks migrations and submodules, looks through the diff for leftovers and drafts the PR description. It never pushes or opens the PR on its own. `/prepare-pr quick` runs only the tests for the changed projects.
 
+### /contract-check
+
+Checks that a change does not break apps that talk to each other, in both directions: an older client against the new server and the new client against an older server. Lists what the diff changes in DTOs, routes, serializer settings, messages and shared tables, finds every consumer, and proves the risky changes with a round trip between the old and new code. Works on a branch or on any open pull request.
+
 ### /update-docs
 
 Checks CLAUDE.md, AGENTS.md, repo skills and the build and run parts of the README against the repo as it really is: every path, command, version and setting is checked before it stays. Fixes what is wrong or stale and points out what is missing, such as how to run the app. `/update-docs branch` checks only what the current branch's changes made outdated, as a step before a pull request.
@@ -64,6 +68,10 @@ Checks CLAUDE.md, AGENTS.md, repo skills and the build and run parts of the READ
 ### /verify-app
 
 Proves a change works by running the app locally and walking through it: a screenshot for every step and a before/after pair for every changed screen, with personal data masked. It finds how to run the app from a run skill in the repo or your own `recipes.local.md`, uses only local or fake data and puts back what it changed. The result (`verify.json` plus images and a readable `verify.md`) is a fixed format other skills reuse.
+
+### /watch-release
+
+Follows a merged pull request, a release tag or a deploy until the pipeline finishes, then watches the deployed app for a while (health, errors, the logs the team already has) and reports whether it is healthy. Read-only: it never rolls back or restarts anything, and asks before querying monitoring that costs money.
 
 ### /release
 
