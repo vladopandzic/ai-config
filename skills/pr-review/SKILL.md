@@ -67,8 +67,8 @@ je samo odakle dolazi kontekst.
    trenutna. Baza: ciljna grana repoa (konvencija iz `CLAUDE.md`, inače `git symbolic-ref refs/remotes/origin/HEAD`);
    `git fetch origin <baza>`, pa `mergeBase = git merge-base origin/<baza> <grana>`. Diff `git diff <mergeBase>...<grana>`
    spremi u scratchpad (`diffPath`), commit poruke iz `git log <mergeBase>..<grana>`. `ticketKey` iz imena grane po
-   `ticketPattern` repoa iz `config.local.ps1` (ako repo nije u configu, uobičajeni oblik `ABC-123`). `reviewsDir` i
-   `notesPath` iz configa kao inače. Nema komentara ni CI-ja: `comments=[]`, `ci=[]`.
+   `ticketPattern` repoa iz `config.local.ps1` (ako repo nije u configu, uobičajeni oblik `ABC-123`). `notesPath` iz configa kao
+   inače, a `reviewsDir` je mapa tog zadatka: `pwsh -NoProfile -File $HOME/.claude/skills/pr-review/scripts/artifact-dir.ps1 -Repo <repo> -Key <ticketKey ili ime grane>`. Nema komentara ni CI-ja: `comments=[]`, `ci=[]`.
 2. Snimi taj kontekst kao `<reviewsDir>/<repo>-<grana s / zamijenjenim s ->.harvest.json` (`pr: null`, `headSha`, `mergeBase`).
 3. **Fan-out** kao u koraku 2, ali bez `nerijeseni-komentari` (nema komentara). Perspektive čitaju preko
    `git show <grana>:<path>`; build i testovi idu u export ili worktree u scratchpadu, nikad u radni checkout.

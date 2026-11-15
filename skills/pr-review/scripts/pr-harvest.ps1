@@ -28,6 +28,7 @@ $ErrorActionPreference = 'Stop'
 function Out-Json($o) { $o | ConvertTo-Json -Depth 8 -Compress }
 
 . (Join-Path $PSScriptRoot 'pr-common.ps1')
+. (Join-Path $PSScriptRoot 'artifact-dir.ps1')
 $configError = Import-ReviewConfig
 if ($configError) { Out-Json @{ error = $configError }; exit 0 }
 
@@ -177,7 +178,8 @@ if ($access.error) { Out-Json @{ error = $access.error }; exit 0 }
 $Repo = $cfg.name
 
 function Get-NotesHead($repo, $pr) {
-  $notes = Join-Path $ReviewsDir "$repo-$pr.objasnjenje.md"
+  $notes = Join-Path $TaskDir "$repo-$pr.objasnjenje.md"
+  if (-not (Test-Path $notes)) { $notes = Join-Path $ReviewsDir "$repo-$pr.objasnjenje.md" }
   if (-not (Test-Path $notes)) { return $null }
   $match = Select-String -Path $notes -Pattern 'Reviewano @ ([0-9a-f]{7,40})' | Select-Object -First 1
   if ($match) { return $match.Matches[0].Groups[1].Value }
@@ -338,6 +340,8 @@ $key = $null; if ("$($pull.title) $($pull.source)" -match $cfg.ticketRegex) { $k
 $authArguments = Get-GitAuthArguments $cfg
 git @authArguments -C $cfg.localPath fetch origin $pull.fetchSpec $pull.dest --quiet 2>$null | Out-Null
 
+$taskTitle = if ($key) { "$key · $($pull.title)" } else { $pull.title }
+$TaskDir = Get-ArtifactDir -Repo $Repo -Key "PR-$Pr" -Title $taskTitle
 $baseSha = Get-NotesHead $Repo $Pr; $baseSource = 'notes'
 if (-not $baseSha -and $pull.reviewedSha) { $baseSha = $pull.reviewedSha; $baseSource = 'github-review' }
 $previousReview = New-PreviousReview $pull.myLastAt $baseSha $baseSource $pull.headSha $pull.fetchSpec $pull.dest $pull.myActivityIds
@@ -350,6 +354,6 @@ Out-Json @{
   approvals = $pull.approvals; ci = $pull.ci; ticketKey = $key; comments = $pull.comments
   fetchSpec = $pull.fetchSpec
   diffPath = $diffPath; diffLines = (Get-Content $diffPath | Measure-Object -Line).Lines
-  me = $pull.me; localPath = $cfg.localPath; reviewsDir = $ReviewsDir
+  me = $pull.me; localPath = $cfg.localPath; reviewsDir = $TaskDir
   notesPath = if (Test-Path $cfg.notesPath) { $cfg.notesPath } else { $null }
 }

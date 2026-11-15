@@ -58,7 +58,7 @@ Mark each claim: **ok**, **wrong** (with what is true now), **stale** (refers to
 
 ## 4. Learn from the task (branch mode)
 
-After a task, collect what it taught: findings of `plan-review` critics that had to be dug out of the code, `pr-review` findings, `contract-check` and `verify-app` results, build or test traps hit on the way, and corrections the user or reviewers made on the pull request. For each lesson:
+After a task, collect what it taught, starting from its task folder (`pr-review/scripts/artifact-dir.ps1`: the plan, review findings, contract and app checks and `run-log.md` when the flow wrote one): findings of `plan-review` critics that had to be dug out of the code, `pr-review` findings, `contract-check` and `verify-app` results, build or test traps hit on the way, and corrections the user or reviewers made on the pull request. For each lesson:
 
 1. **Write it as a rule**, not a story: what to do or avoid, where, and why in a few words, with its source (ticket key or commit).
 2. **Decide its place**:

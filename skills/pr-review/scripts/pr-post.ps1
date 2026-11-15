@@ -8,7 +8,7 @@
   Bitbucket posting needs the write token BITBUCKET_<WORKSPACE>_TOKEN_WRITE (see pr-common.ps1).
   Azure DevOps posting uses the repo's tokenVariable PAT, which then needs Code (Read & write).
 
-  Manifest = editable Markdown at <ReviewsDir>/<repo>-<pr>.md, one block per comment:
+  Manifest = editable Markdown at <task folder>/<repo>-<pr>.md (scripts/artifact-dir.ps1), one block per comment:
     ## PR-COMMENT 1 | inline | src/Shop.Api/Orders/OrderService.cs | 16 | posted=no
     <comment body, multi-line, until next "## PR-COMMENT" or EOF>
     ## PR-COMMENT 2 | reply | 123456789 | - | posted=no
@@ -31,7 +31,7 @@
 param(
   [string]$Repo,
   [Parameter(Mandatory)][int]$Pr,
-  [string]$File,                          # manifest path (default: <ReviewsDir>/<repo>-<pr>.md)
+  [string]$File,                          # manifest path (default: <task folder>/<repo>-<pr>.md)
   [string]$Only,                          # comma list of comment numbers; empty = all unposted
   [switch]$Post,                          # WITHOUT this = dry run (safe). WITH = actually post.
   [switch]$Force                          # post even a comment flagged as a duplicate of an existing one
@@ -55,7 +55,12 @@ $readHeaders = switch ($cfg.host) {
   default { Get-BitbucketHeaders $cfg.workspace }
 }
 
-if (-not $File) { $File = Join-Path $ReviewsDir "$Repo-$Pr.md" }
+if (-not $File) {
+  . (Join-Path $PSScriptRoot 'artifact-dir.ps1')
+  $File = Join-Path (Get-ArtifactDir -Repo $Repo -Key "PR-$Pr") "$Repo-$Pr.md"
+  $flatFile = Join-Path $ReviewsDir "$Repo-$Pr.md"
+  if (-not (Test-Path $File) -and (Test-Path $flatFile)) { $File = $flatFile }
+}
 if (-not (Test-Path $File)) { Write-Output "GREŠKA: nema manifesta ($File). Prvo pokreni /pr-review $Repo $Pr."; exit 0 }
 
 # --- parse manifest ---

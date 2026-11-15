@@ -27,3 +27,9 @@ $ReviewRepos = @{
 }
 
 $ReviewsDir = Join-Path $HOME 'pr-review'
+
+# Optional: group artifacts by client. Each ticket or PR gets <ReviewsDir>\<client>\<repo>\<key>\ (scripts/artifact-dir.ps1);
+# repos not listed here get <ReviewsDir>\<repo>\<key>\.
+$RepoClients = @{
+  # 'my-api' = 'client-a'
+}

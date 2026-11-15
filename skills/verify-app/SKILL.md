@@ -62,7 +62,7 @@ If the app cannot be started, stop and say exactly what is missing (SDK, databas
 
 ## 6. Output
 
-Folder: `<reviews dir>\<repo>-<PR number or branch>.verify\`, where the reviews dir is `$ReviewsDir` from `pr-review`'s `config.local.ps1`, or `%USERPROFILE%\pr-review` without it. Replace the folder's previous contents on a new run.
+Folder: `verify\` inside the task folder that `pr-review/scripts/artifact-dir.ps1 -Repo <repo> -Key <key>` returns (`<reviews dir>\<client>\<repo>\<key>\`; the key is the ticket key, `PR-<number>` for a pull request, or the branch name when there is neither). Replace its previous contents on a new run.
 
 `verify.json`:
 

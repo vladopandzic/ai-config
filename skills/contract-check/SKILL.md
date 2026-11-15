@@ -71,7 +71,7 @@ Use made-up data only. Delete harnesses and exports afterwards; never commit the
 
 ## 6. Report
 
-Write `<reviews dir>\<repo>-<PR number or branch>.contract.md`, where the reviews dir is `$ReviewsDir` from `pr-review`'s `config.local.ps1`, or `%USERPROFILE%\pr-review` without it, and say in the chat:
+Write `contract.md` in the task folder that `pr-review/scripts/artifact-dir.ps1 -Repo <repo> -Key <key>` returns (`<reviews dir>\<client>\<repo>\<key>\`; the key is the ticket key, `PR-<number>` for a pull request, or the branch name when there is neither), and say in the chat:
 
 - the verdict in one line: **compatible**, **compatible with conditions** (deploy order, a default, a flag) or **breaking**;
 - a table: change · consumer · direction · result · proof (test name, harness output or "not proven, because …");
