@@ -57,6 +57,10 @@ Adds, checks, removes and applies EF Core migrations in any .NET repo. It finds 
 
 Gets the current branch ready for a pull request: runs locally what the repo's CI runs (in a clean clone, with CI's .NET version), checks migrations and submodules, looks through the diff for leftovers and drafts the PR description. It never pushes or opens the PR on its own. `/prepare-pr quick` runs only the tests for the changed projects.
 
+### /update-docs
+
+Checks CLAUDE.md, AGENTS.md, repo skills and the build and run parts of the README against the repo as it really is: every path, command, version and setting is checked before it stays. Fixes what is wrong or stale and points out what is missing, such as how to run the app. `/update-docs branch` checks only what the current branch's changes made outdated, as a step before a pull request.
+
 ### /release
 
 Prepares a release the way the repo already does it: reads the release docs, CI tag patterns and earlier tags, proposes the next version, lists what goes in and the migrations the release will run, and makes the release branch with the version bump locally. The branch and the annotated tag are pushed only after an explicit yes, because the tag usually deploys.
