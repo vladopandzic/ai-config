@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Multi-perspective PR review za GitHub, Bitbucket i Azure DevOps repoe iz config.local.ps1. Harvesta PR (diff, komentari, CI, tiket), paralelno pušta nezavisne perspektive (bugs/arhitektura/testovi/sigurnost/perf/konvencije/ticket-fit/neriješeni komentari/dizajn), svaku provjerenu u lokalnom repou, i spaja ih u jedan rangiran izvještaj s gotovim draft komentarima. Bug nalazi se dokazuju pokrenutim testom. Ništa se ne objavljuje na PR bez izričite potvrde.
+description: Multi-perspective PR review za GitHub, Bitbucket i Azure DevOps repoe iz config.local.ps1. Harvesta PR (diff, komentari, CI, tiket), paralelno pušta nezavisne perspektive (bugs/arhitektura/testovi/sigurnost/perf/konvencije/ticket-fit/neriješeni komentari/dizajn), svaku provjerenu u lokalnom repou, i spaja ih u jedan rangiran izvještaj s gotovim draft komentarima. `/pr-review grana` radi isto nad lokalnom granom prije nego PR postoji. Bug nalazi se dokazuju pokrenutim testom. Ništa se ne objavljuje na PR bez izričite potvrde.
 user-invocable: true
 ---
 
@@ -57,6 +57,24 @@ Ispiše otvorene PR-ove svih repoa iz configa, po repou.
 - Više PR-ova odjednom radi **sekvencijalno**, jasno odvojeni izvještaji.
 
 **Nikad ne nagađaj PR sam.**
+
+## 0b. Lokalna grana bez PR-a → `/pr-review grana [<grana>] [quick | only …]`
+
+Review vlastite grane prije nego PR postoji, npr. kao korak u `start-task … sam`. Isti lensovi, isti format nalaza; razlika
+je samo odakle dolazi kontekst.
+
+1. **Kontekst umjesto harvesta.** Repo je onaj u radnom folderu (`git rev-parse --show-toplevel`), grana je zadana ili
+   trenutna. Baza: ciljna grana repoa (konvencija iz `CLAUDE.md`, inače `git symbolic-ref refs/remotes/origin/HEAD`);
+   `git fetch origin <baza>`, pa `mergeBase = git merge-base origin/<baza> <grana>`. Diff `git diff <mergeBase>...<grana>`
+   spremi u scratchpad (`diffPath`), commit poruke iz `git log <mergeBase>..<grana>`. `ticketKey` iz imena grane po
+   `ticketPattern` repoa iz `config.local.ps1` (ako repo nije u configu, uobičajeni oblik `ABC-123`). `reviewsDir` i
+   `notesPath` iz configa kao inače. Nema komentara ni CI-ja: `comments=[]`, `ci=[]`.
+2. Snimi taj kontekst kao `<reviewsDir>/<repo>-<grana s / zamijenjenim s ->.harvest.json` (`pr: null`, `headSha`, `mergeBase`).
+3. **Fan-out** kao u koraku 2, ali bez `nerijeseni-komentari` (nema komentara). Perspektive čitaju preko
+   `git show <grana>:<path>`; build i testovi idu u export ili worktree u scratchpadu, nikad u radni checkout.
+4. **Merge** kao u koraku 3, bez dedupa protiv komentara. Presuda je "spremno za PR / nije" umjesto approvea.
+5. **Izlaz:** isti izvještaj i `findings.json` (s `pr: null` i imenom grane), ali umjesto draft komentara za PR svaki nalaz
+   ima **što popraviti**, jer je autor onaj tko pokreće review. Nema manifesta za objavu i ništa se ne objavljuje.
 
 ## 1. Harvest (jedan poziv)
 ```
