@@ -29,9 +29,9 @@
   link('src', P.source || '', branchUrl(P.source), `Grana na ${host}u`);
   link('dest', P.dest || '', branchUrl(P.dest), `Grana na ${host}u`);
   link('author', P.author || '');
-  const ver = title.querySelector('.tour-ver'), at = (P.at || '').match(/^(\d{4})-(\d\d)-(\d\d)/);
+  const ver = title.querySelector('.tour-ver'), at = (P.at || '').match(/^(\d{4})-(\d\d)-(\d\d)(?:[ T](\d\d:\d\d))?/);
   if (commitUrl(M.head)) { ver.href = commitUrl(M.head); ver.target = '_blank'; ver.rel = 'noopener'; }
-  ver.textContent = [(M.head || '').slice(0, 7), at && `tour od ${+at[3]}.${+at[2]}.`].filter(Boolean).join(' · ');
+  ver.textContent = [(M.head || '').slice(0, 7), at && `tour od ${+at[3]}.${+at[2]}.${at[4] ? ` u ${at[4]}` : ''}`].filter(Boolean).join(' · ');
   ver.title = `Tour je napravljen za commit ${(M.head || '?').slice(0, 7)}${P.at ? `; stanje PR-a s ${M.host === 'bitbucket' ? 'Bitbucketa' : 'GitHuba'} od ${P.at}` : ''}.`;
   const tgTree = mk('button', 'ide-tg'); tgTree.innerHTML = '<span>☰</span><span class="lbl">Fajlovi</span><kbd>Ctrl+B</kbd>';
   const tgCode = mk('button', 'ide-tg'); tgCode.innerHTML = '<span>&lt;/&gt;</span><span class="lbl">Kod</span><kbd>Ctrl+J</kbd>';
