@@ -7,10 +7,11 @@ description: Walks the user through someone else's pull request so they understa
 
 - `/pr-walkthrough [repo] <number>`: the whole PR; when there is an earlier page and the PR moved on since, only what changed (see Refresh).
 - `/pr-walkthrough [repo] <number> full`: the whole PR again.
+- `bez ekrana` after the number: no app run, the page has no Ekrani tab.
 
 It needs the `pr-review` setup: the repo list in `config.local.ps1` (`/pr-review postavi` writes it), local clones, and the optional repo notes `repos\<repo>.md`. Tools: git, Python 3.11 or newer, PowerShell 7. Write in the language the user writes in; the page's own labels are Croatian.
 
-This is not a review. No findings of your own, no comments to post, no build, no tests, no running the app. The goal is that after reading the page the user can explain the PR to someone else.
+This is not a review. No findings of your own, no comments to post, no tests. The app runs only through `verify-app`, for the Ekrani tab (section 4). The goal is that after reading the page the user can explain the PR to someone else.
 
 The tools are in `tools\` next to this file (`<tools>` below). Run Python with `python -I`.
 
@@ -18,6 +19,7 @@ The tools are in `tools\` next to this file (`<tools>` below). Run Python with `
 
 - The page: `<reviewsDir>\<repo>-<n>.walkthrough.html`, one file that works with a double click and can be sent to a colleague.
 - Its data: `<reviewsDir>\<repo>-<n>.walkthrough\` (`<data>` below): the hand-written parts and the JSON the tools make, so the page can be rebuilt and refreshed.
+- Screenshots: `<reviewsDir>\verify\`, written by `verify-app` (section 4).
 - Never inside a repo. `reviewsDir` comes from the harvest.
 
 ## 1. Gather
@@ -71,12 +73,24 @@ The tour of the code:
 
 Before building, print the line of every note and step from `git show <head>:<file>` and check it says what the text claims.
 
-## 4. Build
+## 4. Ekrani: the app before and after
+
+The Ekrani tab shows the changed screens from the running app, before and after, with the changed parts marked. It is built from `verify-app`'s result in `<reviewsDir>\verify\verify.json`.
+
+- That file exists for this head (`target.head`): use it, do not run the app again.
+- It is missing, the PR changes something a user sees (the `screens` topic in `topics.json`, or UI files in the diff) and the repo has a way to run (a `run-*` skill in the repo or a recipe in `verify-app`'s `recipes.local.md`): build and show the page without screens first, then run `verify-app <repo> <n>` and rebuild with them. Tell the user in one line that the screens are on the way.
+- It exists for an older head: use it (the page says the screens may be out of date) and offer to run `verify-app` again.
+- No way to run the app, no visible change, or `bez ekrana`: no Ekrani tab (delete an old `<data>\parts\ekrani.html`); say why in one line.
+
+A mark on a screenshot opens the code panel of its `file`. Give every file the marks point at a panel in `code-spec.json` (the few lines that draw the marked part), also when it is not a stop of the tour; a mark without a panel cannot be clicked.
+
+## 5. Build
 
 ```powershell
 $T = "<tools>"; $D = "<data>"; $R = "<localPath>"
-python -I $T\make_page.py $T\reference-template.html $D\parts $D\page-template.html
 python -I $T\code_panels.py $D\code-spec.json $D\code-panels.json
+python -I $T\verify_screens.py <reviewsDir>\verify $D\code-panels.json $R <base> <head> $D\parts\ekrani.html   # only with screens (section 4)
+python -I $T\make_page.py $T\reference-template.html $D\parts $D\page-template.html
 python -I $T\pr_topics.py $R <base> <head> $D\topics.json
 python -I $T\pr_packages.py $R <head> $D\topics.json $D\topics-human.json
 python -I $T\pr_meta.py $R auto <n> <base> <head> $D\meta.json $D\code-panels.json $D\topics.json
@@ -94,13 +108,13 @@ python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthr
 
 Review findings: when `<reviewsDir>\<repo>-<pr>.findings.json` exists, copy it to `<data>\findings.json` and pass `FINDINGS=`. A findings file made for an older head still shows, with a note that the lines may have moved.
 
-## 5. Check and show
+## 6. Check and show
 
 - The build prints one placeholder per `NAME=`; zero means a wrong name.
-- When a browser tool is available, open the page and read the console: no errors, and the dashboard, "Tura kroz kod", "Kod po temama" and a code panel show content. A page served from a temporary `python -I -m http.server --bind 127.0.0.1` works where `file://` does not; stop the server afterwards.
+- When a browser tool is available, open the page and read the console: no errors, and the dashboard, "Tura kroz kod", "Kod po temama", a code panel and, with screens, the Ekrani images show content. A page served from a temporary `python -I -m http.server --bind 127.0.0.1` works where `file://` does not; stop the server afterwards.
 - Show the page the way the user's rules say documents are shown.
 
-## 6. After
+## 7. After
 
 - In the chat: the one-sentence summary, the page path, and an offer to answer questions or go deeper into any stop.
 - Terms that are not in the repo notes yet: list them and, on a yes, add them to the `## Terms` section of `repos\<repo>.md` (create the file if missing; git ignores it). The notes then explain the domain better with every PR.
@@ -128,7 +142,7 @@ When the PR got new commits since the page was built:
 1. Fetch again (step 1.2) and harvest again; the new head is `pr-<n>`.
 2. `python -I <tools>\delta.py <localPath> <old head> <new head> <data>` writes `<data>\delta.json` (new commits, changed files and hunks, which panels and zoom steps sit on changed code) and moves `code-spec.json` and `zoom.json` to the new head, keeping `.bak` copies.
 3. Write `summary` in `delta.json`: two to six sentences on what is new and why it matters for the review. Fix a tour text only when `stalePanels` or `staleSteps` say it went out of date.
-4. Run step 4 again with the new head and `DELTA=<data>\delta.json`. The user's comments and saved answers in the page move with the code.
+4. Run step 5 again with the new head and `DELTA=<data>\delta.json`. The user's comments and saved answers in the page move with the code.
 
 ## Pitaj Claude (optional)
 

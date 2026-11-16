@@ -62,7 +62,7 @@ If the app cannot be started, stop and say exactly what is missing (SDK, databas
 
 ## 6. Output
 
-Folder: `verify\` inside the task folder that `pr-review/scripts/artifact-dir.ps1 -Repo <repo> -Key <key>` returns (`<reviews dir>\<client>\<repo>\<key>\`; the key is the ticket key, `PR-<number>` for a pull request, or the branch name when there is neither). Replace its previous contents on a new run.
+Folder: `verify\` inside the task folder that `pr-review/scripts/artifact-dir.ps1 -Repo <repo> -Key <key>` returns (`<reviews dir>\<client>\<repo>\<key>\`; the key is the ticket key, `PR-<number>` for a pull request, or the branch name when there is neither). Before a new run, move the previous run into `verify\old\<short head of that run>\` (replace it when that head is the same), so `verify\verify.json` is always the latest and earlier screens stay for comparison.
 
 `verify.json`:
 
@@ -97,6 +97,7 @@ Folder: `verify\` inside the task folder that `pr-review/scripts/artifact-dir.ps
 }
 ```
 
+- Titles, `expected`, `actual`, captions and labels are in the user's language: pages built from this file show them as they are.
 - `marks[].file` is optional: the source file behind the marked element, so a page that shows the code can link image and code.
 - `checks` hold evidence without a screen: `kind` is `http`, `test`, `cli`, `db` or `log`, with the request or command, the status or exit code, and an optional text file under `logs/`. Keep statuses, counts and short log lines; never store response bodies, database rows or machine identifiers that can contain personal data.
 - Verdict: `pass` when every scenario passed; `fail` when any failed; `partial` when something the change promised could not be checked; `blocked` when the app did not run. Things outside the change that were not checked go in `notCovered` and do not make the verdict partial.

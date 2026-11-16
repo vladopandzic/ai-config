@@ -1,9 +1,10 @@
 """Makes a PR's page template from the shared reference template: only the PR-specific blocks change.
 
 The reference (reference-template.html) carries all CSS, JS and behaviour; its PR-specific parts sit between markers
-<!--@NAME--> … <!--/@NAME-->: HEADER (h1 and lead), IZA (extra content under the code tour, e.g. a diagram; empty is
-fine), FOOTER (Na što paziti, Pojmovnik, Otvorena pitanja). <parts_dir> holds title.txt, header.html, iza.html and
-footer.html; a missing file empties that block.
+<!--@NAME--> … <!--/@NAME-->: HEADER (h1 and lead), EKRANI (the Ekrani tab, written by verify_screens.py; empty hides
+the tab), IZA (extra content under the code tour, e.g. a diagram; empty is fine), FOOTER (Na što paziti, Pojmovnik,
+Otvorena pitanja). <parts_dir> holds title.txt, header.html, ekrani.html, iza.html and footer.html; a missing file empties
+that block.
 
 Every page also gets the IDE layer from ide/ (title bar, file tree, status bar): ide.css as a second
 <style id="ide-layer"> right after the main <style>, ide.js as <script id="ide-shell"> after the main script. ide.js reads
@@ -20,7 +21,7 @@ import re
 import sys
 
 TOOLS_DIR = pathlib.Path(__file__).parent
-PART_FILES = {'HEADER': 'header.html', 'IZA': 'iza.html', 'FOOTER': 'footer.html'}
+PART_FILES = {'HEADER': 'header.html', 'EKRANI': 'ekrani.html', 'IZA': 'iza.html', 'FOOTER': 'footer.html'}
 
 ref, parts, out = map(pathlib.Path, sys.argv[1:4])
 html = ref.read_text(encoding='utf-8')

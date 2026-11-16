@@ -58,11 +58,16 @@ function Get-ArtifactDir {
 
   $index = Join-Path $repoDir 'index.md'
   if (-not (Test-Path $index)) { Set-Content -Path $index -Value "# $repoName`n" -Encoding utf8 }
-  $alreadyListed = Select-String -Path $index -SimpleMatch "[$folderKey]($folderKey/)" -Quiet
-  if (-not $alreadyListed) {
-    $line = "- $(Get-Date -Format 'yyyy-MM-dd') · [$folderKey]($folderKey/)"
+  $link = "[$folderKey]($folderKey/)"
+  $lines = @(Get-Content -Path $index -Encoding utf8)
+  $listedAt = [Array]::FindIndex($lines, [Predicate[string]] { param($l) $l.Contains($link) })
+  if ($listedAt -lt 0) {
+    $line = "- $(Get-Date -Format 'yyyy-MM-dd') · $link"
     if ($Title) { $line += " · $Title" }
     Add-Content -Path $index -Value $line -Encoding utf8
+  } elseif ($Title -and $lines[$listedAt].TrimEnd().EndsWith($link)) {
+    $lines[$listedAt] = $lines[$listedAt].TrimEnd() + " · $Title"
+    Set-Content -Path $index -Value $lines -Encoding utf8
   }
   $dir
 }
