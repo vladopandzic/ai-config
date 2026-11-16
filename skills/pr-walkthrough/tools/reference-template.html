@@ -2722,7 +2722,7 @@
     box.append(head, el('div', 'fd-title', f.title || ''));
     if (f.short) box.append(el('p', 'fd-short', f.short));
     const more = (label, fill) => { const d = el('details', 'fd-more'); d.append(el('summary', null, label)); fill(d); box.append(d); };
-    if (f.plain?.length) more('Za glupane', d => { const ol = el('ol'); f.plain.forEach(x => ol.append(el('li', null, x))); d.append(ol); });
+    if (f.plain?.length) more('Korak po korak', d => { const ol = el('ol'); f.plain.forEach(x => ol.append(el('li', null, x))); d.append(ol); });
     if (f.fix) more('Fix', d => d.append(el('p', null, f.fix)));
     if (f.proof?.text || f.proof?.output) more('Dokaz', d => { if (f.proof.text) d.append(el('p', null, f.proof.text)); if (f.proof.output) d.append(el('pre', null, f.proof.output)); });
     if (f.draft) more('Nacrt komentara', d => { const t = el('div', 'fd-draft'); t.innerHTML = commentMd(f.draft); d.append(t); });
