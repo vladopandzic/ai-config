@@ -570,6 +570,12 @@
   .rvw-keep { display: flex; align-items: flex-start; width: 26px; flex-shrink: 0; padding: 11px 0 0 10px; border-bottom: 1px solid var(--rule); cursor: pointer; }
   .rvw-keep input { margin: 0; cursor: pointer; }
   .my-comment .dismissed { color: var(--fg3); font-style: normal; }
+  .post-review { margin: 14px 0 4px; padding: 10px 12px; border: 1px solid var(--rule2); border-radius: 4px; background: var(--bg2); }
+  .post-review .opts { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 8px; font: 13px var(--sans); }
+  .post-review .opts label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .post-review textarea { width: 100%; min-height: 54px; padding: 6px 8px; border: 1px solid var(--rule2); background: var(--bg); color: var(--fg); font: 13px/1.5 var(--sans); resize: vertical; box-sizing: border-box; }
+  .post-review textarea[hidden] { display: none; }
+  .post-review .why { color: var(--fg3); font: 12px/1.5 var(--sans); }
   .post-open { margin-left: auto; padding: 3px 10px; border: 1px solid var(--blue); border-radius: 3px; background: var(--bg); color: var(--blue); font: 600 12px/1.5 var(--sans); cursor: pointer; }
   .post-open:hover { background: var(--blue); color: var(--bg); }
   .post-dlg { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; background: color-mix(in srgb, #000 45%, transparent); }
@@ -2856,8 +2862,38 @@
     else if (it.key.startsWith('F:')) saved.findings[it.key.slice(2)] = 'posted';
     else if (saved.comments[it.key]) saved.comments[it.key].posted = posted;
   }
-  async function postCall(items, dry) {
-    const r = await fetch(ASK_URL + '/post', { method: 'POST', body: JSON.stringify({ key: askCfg.key, pr: askPr(), host: META.host, slug: META.repo, number: META.number, head: META.head, dry, items }) });
+  /* Završi review uz slanje: GitHub skida zahtjev za review tek kad ga predaš, pa i odgovori u nitima idu s jednim od ovih. */
+  const POST_REVIEW = [['', 'Ne predaj review'], ['comment', 'Samo komentar'], ['changes', 'Traži izmjene'], ['approve', 'Odobri']];
+  const POST_REVIEW_TEXT = { comment: 'Odgovorio sam u nitima.', changes: 'Ostalo je još par stvari, napisao sam u nitima.', approve: '' };
+  function postReviewDefault(check) {
+    const stillOpen = ROUND_THREADS.filter(t => ['open', 'partly'].includes(roundOutcome(t))).length;
+    if (ROUND_THREADS.length) return stillOpen ? 'changes' : 'comment';
+    return check.reviewRequested ? 'comment' : '';
+  }
+  function postReviewBox(check, onChange) {
+    const box = el('div', 'post-review'), opts = el('div', 'opts'), text = el('textarea'), state = { event: postReviewDefault(check) };
+    box.append(el('div', 'post-grp', 'Završi review'));
+    const why = [];
+    if (check.reviewRequested) why.push('Autor te tražio za review: dok ga ne predaš, PR ostaje na tebi.');
+    const stillOpen = ROUND_THREADS.filter(t => ['open', 'partly'].includes(roundOutcome(t))).length;
+    if (ROUND_THREADS.length) why.push(stillOpen ? `U Što je riješeno ${stillOpen} ${hrPlural(stillOpen, 'nit nije gotova', 'niti nisu gotove', 'niti nije gotovo')}, pa je predloženo Traži izmjene.` : 'U Što je riješeno je sve gotovo ili čeka drugog.');
+    if (why.length) box.append(el('div', 'why', why.join(' ')));
+    POST_REVIEW.forEach(([event, label]) => {
+      const opt = el('label'), radio = el('input');
+      radio.type = 'radio'; radio.name = 'post-review'; radio.checked = state.event === event;
+      radio.addEventListener('change', () => { state.event = event; text.value = POST_REVIEW_TEXT[event] ?? ''; text.hidden = !event; onChange(); });
+      opt.append(radio, event === 'approve' ? el('b', null, label) : label);
+      opts.append(opt);
+    });
+    text.value = POST_REVIEW_TEXT[state.event] ?? '';
+    text.hidden = !state.event;
+    text.placeholder = 'Tekst reviewa (za Odobri može ostati prazan)';
+    text.addEventListener('input', onChange);
+    box.append(opts, text);
+    return { el: box, value: () => state.event && (state.event === 'approve' || text.value.trim()) ? { event: state.event, body: text.value.trim() } : null, lock: () => box.querySelectorAll('input, textarea').forEach(x => { x.disabled = true; }) };
+  }
+  async function postCall(items, dry, review) {
+    const r = await fetch(ASK_URL + '/post', { method: 'POST', body: JSON.stringify({ key: askCfg.key, pr: askPr(), host: META.host, slug: META.repo, number: META.number, head: META.head, dry, items, review }) });
     const body = await r.json().catch(() => ({}));
     if (r.status === 403) throw new Error('Pogrešan ključ pomoćnika.');
     if (!r.ok) throw new Error(body.error || `Pomoćnik je vratio grešku (${r.status}).`);
@@ -2885,7 +2921,6 @@
       return;
     }
     const items = postItems();
-    if (!items.length) { msg(`Nema ničega za slanje: svi tvoji komentari su već na ${hostName()}u.`); return; }
     const wait = msg('Provjeravam što je već na PR-u…');
     let check;
     try { check = await postCall(items, true); } catch (e) { wait.remove(); msg(e.message, true); return; }
@@ -2900,7 +2935,7 @@
     }
     if (already) msg(`${already} ${hrPlural(already, 'komentar je', 'komentara su', 'komentara je')} već na ${hostName()}u; označio sam ${already === 1 ? 'ga' : 'ih'} kao ${already === 1 ? 'poslan' : 'poslane'}.`);
     const todo = items.filter(it => check.items?.[it.key]?.status !== 'posted');
-    if (!todo.length) { msg(`Sve je već na ${hostName()}u.`); return; }
+    if (!todo.length) msg(`Svi tvoji komentari su već na ${hostName()}u.`);
     const rows = new Map();
     const group = (title, list) => {
       if (!list.length) return null;
@@ -2947,12 +2982,18 @@
       }));
       draftGrp.append(pickAll);
     }
+    const review = postReviewBox(check, () => sync());
+    body.append(review.el);
     const hint = el('span', 'hint', 'Komentari na liniji idu kao jedan review. Ništa se ne šalje dok ne klikneš.');
     const cancel = el('button', null, 'Odustani'), send = el('button', 'primary', '');
     cancel.type = send.type = 'button';
     cancel.addEventListener('click', shut);
     const picked = () => [...rows.values()].filter(r => r.cb.checked).map(r => r.it);
-    const sync = () => { const n = picked().length; send.textContent = `Pošalji odabrane (${n})`; send.disabled = !n; };
+    const sync = () => {
+      const n = picked().length, rv = review.value();
+      send.textContent = n && rv ? `Pošalji (${n}) i predaj review` : n ? `Pošalji odabrane (${n})` : rv ? 'Predaj review' : 'Pošalji odabrane (0)';
+      send.disabled = !n && !rv;
+    };
     foot.append(hint, cancel, send);
     sync();
     send.addEventListener('click', async () => {
@@ -2960,8 +3001,10 @@
       send.disabled = cancel.disabled = true;
       send.textContent = 'Šaljem…';
       rows.forEach(r => { r.cb.disabled = true; });
+      const rv = review.value();
+      review.lock();
       let res;
-      try { res = await postCall(chosen, false); } catch (e) { msg(e.message, true); send.textContent = 'Pošalji odabrane'; cancel.disabled = false; return; }
+      try { res = await postCall(chosen, false, rv); } catch (e) { msg(e.message, true); send.textContent = 'Pošalji odabrane'; cancel.disabled = false; return; }
       if (res.moved) { msg(`PR se pomaknuo u međuvremenu (${String(res.head).slice(0, 7)}). Ništa nije poslano; osvježi stranicu.`, true); cancel.disabled = false; send.textContent = 'Nije poslano'; return; }
       let ok = 0, bad = 0;
       chosen.forEach(it => {
@@ -2982,7 +3025,8 @@
       store.save(saved);
       syncTreeMarks();
       syncActBar();
-      msg(bad ? `Poslano ${ok}, nije ${bad}. Neposlani su označeni crveno; ostaju na stranici.` : `Poslano ${ok} ${hrPlural(ok, 'komentar', 'komentara', 'komentara')} na ${hostName()}.`, bad > 0);
+      if (chosen.length) msg(bad ? `Poslano ${ok}, nije ${bad}. Neposlani su označeni crveno; ostaju na stranici.` : `Poslano ${ok} ${hrPlural(ok, 'komentar', 'komentara', 'komentara')} na ${hostName()}.`, bad > 0);
+      if (rv) msg(res.review?.status === 'sent' ? `Review predan: ${POST_REVIEW.find(o => o[0] === rv.event)[1]}.` : `Review nije predan: ${res.review?.error || 'pomoćnik nije odgovorio'}.`, res.review?.status !== 'sent');
       send.textContent = 'Gotovo';
       cancel.textContent = 'Zatvori';
       cancel.disabled = false;

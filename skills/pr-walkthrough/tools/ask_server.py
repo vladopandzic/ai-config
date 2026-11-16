@@ -358,6 +358,8 @@ class Server(http.server.ThreadingHTTPServer):
 
 
 _GH_ENV_BY_REPO = {}
+GITHUB_REVIEW_EVENTS = {'comment': 'COMMENT', 'changes': 'REQUEST_CHANGES', 'approve': 'APPROVE'}
+BITBUCKET_REVIEW_PATHS = {'changes': 'request-changes', 'approve': 'approve'}
 
 
 def _gh_env(slug):
@@ -407,9 +409,10 @@ def _same(a, b):
     return ' '.join(str(a or '').split()) == ' '.join(str(b or '').split())
 
 
-def github_post(slug, number, head, items, dry):
+def github_post(slug, number, head, items, dry, review=None):
     """What of the tour's comments is already on the PR (dry), or send the given ones. Items: key, kind inline|reply|general,
-    path, line, side LEFT|RIGHT, body, replyTo."""
+    path, line, side LEFT|RIGHT, body, replyTo. review = {event comment|changes|approve, body} is submitted after the items,
+    which is what clears the author's review request."""
     if not shutil.which('gh') or not re.fullmatch(r'[\w.-]+/[\w.-]+', str(slug or '')) or not str(number).isdigit():
         return None
     env = _gh_env(slug)
@@ -418,10 +421,11 @@ def github_post(slug, number, head, items, dry):
         return {'error': f'PR nije dohvaćen: {err}'}
     pr_head = pr['head']['sha']
     login = (_gh(env, 'user')[1] or {}).get('login', '?')
-    result = {'login': login, 'head': pr_head, 'moved': bool(head) and not pr_head.startswith(str(head))}
-    review = _gh_pages(env, f'repos/{slug}/pulls/{number}/comments')
+    result = {'login': login, 'head': pr_head, 'moved': bool(head) and not pr_head.startswith(str(head)),
+              'reviewRequested': any(u.get('login') == login for u in pr.get('requested_reviewers') or [])}
+    threads = _gh_pages(env, f'repos/{slug}/pulls/{number}/comments')
     general = _gh_pages(env, f'repos/{slug}/issues/{number}/comments')
-    mine = [c for c in review if c['user']['login'] == login]
+    mine = [c for c in threads if c['user']['login'] == login]
     status = {}
     for it in items:
         k, body = it.get('key'), it.get('body')
@@ -478,6 +482,10 @@ def github_post(slug, number, head, items, dry):
         else:
             sent[it['key']] = {'status': 'error', 'error': err}
     result['items'] = {**{k: v for k, v in status.items() if v['status'] == 'posted'}, **sent}
+    if review:
+        ok, rv, err = _gh(env, '-X', 'POST', f'repos/{slug}/pulls/{number}/reviews', payload={
+            'commit_id': pr_head, 'event': GITHUB_REVIEW_EVENTS[review['event']], 'body': review['body']})
+        result['review'] = {'status': 'sent', 'url': rv.get('html_url', '')} if ok else {'status': 'error', 'error': err}
     return result
 
 
@@ -532,8 +540,9 @@ def _bb_pages(slug, path):
     return out, err
 
 
-def bitbucket_post(slug, number, head, items, dry):
-    """github_post for Bitbucket: same items, same answer. A comment goes out one by one, each with its own result."""
+def bitbucket_post(slug, number, head, items, dry, review=None):
+    """github_post for Bitbucket: same items, same answer. A comment goes out one by one, each with its own result. The review
+    becomes an approval or a change request, and its text a general comment."""
     if not re.fullmatch(r'[\w.-]+/[\w.-]+', str(slug or '')) or not str(number).isdigit():
         return None
     ok, pr, err = _bb(slug, f'pullrequests/{number}')
@@ -583,7 +592,24 @@ def bitbucket_post(slug, number, head, items, dry):
         else:
             sent[it['key']] = {'status': 'error', 'error': err}
     result['items'] = {**{k: v for k, v in status.items() if v['status'] == 'posted'}, **sent}
+    if review:
+        ok, err = True, ''
+        if review['body']:
+            ok, _, err = _bb(slug, f'pullrequests/{number}/comments', write=True, payload={'content': {'raw': review['body']}})
+        if ok and review['event'] in BITBUCKET_REVIEW_PATHS:
+            ok, _, err = _bb(slug, f"pullrequests/{number}/{BITBUCKET_REVIEW_PATHS[review['event']]}", write=True, payload={})
+        result['review'] = {'status': 'sent', 'url': ((pr.get('links') or {}).get('html') or {}).get('href', '')} if ok else {'status': 'error', 'error': err}
     return result
+
+
+def review_request(raw):
+    """The review the page asks to submit with the comments, or None. Comment and change request need a text."""
+    if not isinstance(raw, dict) or raw.get('event') not in GITHUB_REVIEW_EVENTS:
+        return None
+    body = str(raw.get('body') or '').strip()
+    if raw['event'] != 'approve' and not body:
+        return None
+    return {'event': raw['event'], 'body': body}
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -653,7 +679,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path == '/post':
             items = [it for it in (req.get('items') or []) if isinstance(it, dict) and str(it.get('body') or '').strip()]
             post = bitbucket_post if req.get('host') == 'bitbucket' else github_post
-            found = post(req.get('slug'), req.get('number'), str(req.get('head') or ''), items, bool(req.get('dry')))
+            found = post(req.get('slug'), req.get('number'), str(req.get('head') or ''), items, bool(req.get('dry')), review_request(req.get('review')))
             return self.reply(200 if found and not found.get('error') else 502, found or {'error': 'gh nije dostupan ili PR nije pronađen'})
         if self.path == '/history':
             return self.reply(200, {'items': history(self.server.sessions.get(str(req['pr'])))})
