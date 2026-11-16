@@ -655,6 +655,9 @@
   .rvw-item.r-waiting .ic { color: var(--fg3); }
   .rvw-item.r-fixed .ic { color: var(--add); }
   .rvw-item.r-fixed .t { font-weight: 500; }
+  .rvw-item.r-ignored { opacity: .5; }
+  .rvw-item.r-ignored .t { font-weight: 500; text-decoration: line-through; }
+  .round-verdict .link-btn { margin-top: 6px; }
   .round-verdict { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--rule2); border-left: 3px solid var(--fg3); background: var(--bg2); font: 14px/1.55 var(--sans); }
   .round-verdict p { margin: 4px 0 0; }
   .round-verdict.r-open { border-left-color: var(--red); }
@@ -5528,12 +5531,13 @@ ${code}
   const ROUND_LOOK = {
     open: ['✗', 'nije napravljeno', 'Nije napravljeno'], partly: ['◐', 'djelomično', 'Djelomično napravljeno'],
     answered: ['?', 'odgovorio bez promjene', 'Odgovorio bez promjene koda'], waiting: ['…', 'čeka drugog', 'Čeka nekog drugog'],
-    unjudged: ['·', 'nije procijenjeno', 'Još nije procijenjeno'], fixed: ['✓', 'riješeno', 'Riješeno'],
+    unjudged: ['·', 'nije procijenjeno', 'Još nije procijenjeno'], fixed: ['✓', 'riješeno', 'Riješeno'], ignored: ['–', 'zanemareno', 'Zanemareno'],
   };
-  const ROUND_ORDER = ['open', 'partly', 'answered', 'unjudged', 'waiting', 'fixed'];
+  const ROUND_ORDER = ['open', 'partly', 'answered', 'unjudged', 'waiting', 'fixed', 'ignored'];
   const ROUND_FOR_ME = ['open', 'partly', 'answered', 'unjudged'];
   const ROUND_FILTERS = [['all', 'Sve', () => true], ['me', 'Za tebe', o => ROUND_FOR_ME.includes(o)], ['waiting', 'Čeka drugog', o => o === 'waiting'], ['fixed', 'Riješeno', o => o === 'fixed']];
-  const roundOutcome = t => ROUND_LOOK[t.outcome] ? t.outcome : 'unjudged';
+  const roundIgnored = t => !!saved.roundIgnored?.[t.id];
+  const roundOutcome = t => roundIgnored(t) ? 'ignored' : ROUND_LOOK[t.outcome] ? t.outcome : 'unjudged';
   const roundKey = t => 'R' + t.id;
   const roundWhere = t => t.path ? `${t.path.split('/').pop()}:${t.headLine || t.line}` : 'općeniti komentar';
   const roundForMeCount = () => ROUND_THREADS.filter(t => ROUND_FOR_ME.includes(roundOutcome(t)) && !saved.generals[roundKey(t)]).length;
@@ -5600,6 +5604,11 @@ ${code}
     if (t.codeChanged) title.append(el('span', 'round-tag', 'kod oko linije promijenjen'));
     verdict.append(title);
     if (t.why) { const p = el('p'); p.innerHTML = commentMd(t.why); verdict.append(p); }
+    const ignore = el('button', 'link-btn', roundIgnored(t) ? 'Vrati nit' : 'Zanemari ovu nit');
+    ignore.type = 'button';
+    ignore.title = roundIgnored(t) ? 'Nit se opet broji u Za tebe, a njen spremljeni odgovor ide u slanje.' : 'Nit ide na dno i ne broji se u Za tebe; njen spremljeni odgovor se ne šalje.';
+    ignore.addEventListener('click', () => roundSetIgnored(t, !roundIgnored(t)));
+    verdict.append(ignore);
     out.push(verdict);
     if (t.path && t.headLine) { const code = rvwSnippet(t.path, 'head', t.headLine); if (code) out.push(code); }
     const talk = el('div', 'round-talk');
@@ -5612,6 +5621,15 @@ ${code}
     });
     out.push(talk, roundReplyBox(t));
     return out;
+  }
+  function roundSetIgnored(t, ignored) {
+    saved.roundIgnored = saved.roundIgnored || {};
+    if (ignored) saved.roundIgnored[t.id] = true; else delete saved.roundIgnored[t.id];
+    const reply = saved.generals[roundKey(t)];
+    if (reply && !reply.posted) { if (ignored) reply.dismissed = true; else delete reply.dismissed; }
+    store.save(saved);
+    syncActBar();
+    pgvRender();
   }
   function roundReplyBox(t) {
     const key = roundKey(t), mine = saved.generals[key], editing = pgv.roundEdit === key, box = el('div', 'round-reply');
