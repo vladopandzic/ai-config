@@ -16,7 +16,7 @@ session, text, tool, done or error.
 POST /discussion only reads a GitHub PR's threads again with the gh CLI.
 
 POST /post sends the reviewer's own comments to the GitHub or Bitbucket PR, only when the reviewer clicks Send on the page:
-GitHub through the gh CLI (whoever gh is logged in as), inline comments as one review; Bitbucket with the same environment
+GitHub through the gh CLI (the active account, or another logged-in account that sees the repo), inline comments as one review; Bitbucket with the same environment
 variables as pr-review (BITBUCKET_<WORKSPACE>_EMAIL, reads with _TOKEN, writes only with _TOKEN_WRITE). Claude is not
 involved. It first reports what is already on the PR, and refuses when the PR head moved past the page.
 """
@@ -242,8 +242,10 @@ def github_discussion(slug, number):
     if not gh or not re.fullmatch(r'[\w.-]+/[\w.-]+', str(slug or '')) or not str(number).isdigit():
         return None
 
+    env = _gh_env(slug)
+
     def api(*args):
-        r = subprocess.run([gh, 'api', *args], capture_output=True, text=True, encoding='utf-8', timeout=60)
+        r = subprocess.run([gh, 'api', *args], capture_output=True, text=True, encoding='utf-8', env=env, timeout=60)
         return json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else None
 
     def pages(path):
@@ -355,10 +357,34 @@ class Server(http.server.ThreadingHTTPServer):
             SESSION_DIRS_FILE.write_text(json.dumps(self.session_dirs, indent=1), encoding='utf-8')
 
 
-def _gh(*args, payload=None):
+_GH_ENV_BY_REPO = {}
+
+
+def _gh_env(slug):
+    """gh's environment for a repo: the active account when it sees the repo, otherwise the first other account gh is logged in
+    to that does (a work and a private account side by side). None means the active account."""
+    if slug in _GH_ENV_BY_REPO:
+        return _GH_ENV_BY_REPO[slug]
+    gh = shutil.which('gh')
+    sees_repo = lambda env: subprocess.run([gh, 'api', f'repos/{slug}', '--silent'], capture_output=True, env=env, timeout=60).returncode == 0
+    if sees_repo(None):
+        _GH_ENV_BY_REPO[slug] = None
+        return None
+    status = subprocess.run([gh, 'auth', 'status', '--hostname', 'github.com'], capture_output=True, text=True, encoding='utf-8', timeout=30)
+    for account in re.findall(r'account (\S+)', status.stdout + status.stderr):
+        token = subprocess.run([gh, 'auth', 'token', '--hostname', 'github.com', '--user', account], capture_output=True, text=True,
+                               encoding='utf-8', timeout=30).stdout.strip()
+        env = {**os.environ, 'GH_TOKEN': token}
+        if token and sees_repo(env):
+            _GH_ENV_BY_REPO[slug] = env
+            return env
+    return None
+
+
+def _gh(env, *args, payload=None):
     gh = shutil.which('gh')
     r = subprocess.run([gh, 'api', *args, *(['--input', '-'] if payload is not None else [])], capture_output=True, text=True, encoding='utf-8',
-                       input=json.dumps(payload) if payload is not None else None, timeout=60)
+                       input=json.dumps(payload) if payload is not None else None, env=env, timeout=60)
     try:
         body = json.loads(r.stdout) if r.stdout.strip() else None
     except ValueError:
@@ -366,10 +392,10 @@ def _gh(*args, payload=None):
     return r.returncode == 0, body, (r.stderr or r.stdout).strip()[:300]
 
 
-def _gh_pages(path):
+def _gh_pages(env, path):
     out = []
     for page in range(1, 20):
-        ok, chunk, _ = _gh(f'{path}?per_page=100&page={page}')
+        ok, chunk, _ = _gh(env, f'{path}?per_page=100&page={page}')
         chunk = chunk if ok and isinstance(chunk, list) else []
         out += chunk
         if len(chunk) < 100:
@@ -386,14 +412,15 @@ def github_post(slug, number, head, items, dry):
     path, line, side LEFT|RIGHT, body, replyTo."""
     if not shutil.which('gh') or not re.fullmatch(r'[\w.-]+/[\w.-]+', str(slug or '')) or not str(number).isdigit():
         return None
-    ok, pr, err = _gh(f'repos/{slug}/pulls/{number}')
+    env = _gh_env(slug)
+    ok, pr, err = _gh(env, f'repos/{slug}/pulls/{number}')
     if not ok:
         return {'error': f'PR nije dohvaćen: {err}'}
     pr_head = pr['head']['sha']
-    login = (_gh('user')[1] or {}).get('login', '?')
+    login = (_gh(env, 'user')[1] or {}).get('login', '?')
     result = {'login': login, 'head': pr_head, 'moved': bool(head) and not pr_head.startswith(str(head))}
-    review = _gh_pages(f'repos/{slug}/pulls/{number}/comments')
-    general = _gh_pages(f'repos/{slug}/issues/{number}/comments')
+    review = _gh_pages(env, f'repos/{slug}/pulls/{number}/comments')
+    general = _gh_pages(env, f'repos/{slug}/issues/{number}/comments')
     mine = [c for c in review if c['user']['login'] == login]
     status = {}
     for it in items:
@@ -420,11 +447,11 @@ def github_post(slug, number, head, items, dry):
     todo = [it for it in items if status.get(it.get('key'), {}).get('status') != 'posted']
     inline = [it for it in todo if it.get('kind') == 'inline']
     if inline:
-        ok, rv, err = _gh('-X', 'POST', f'repos/{slug}/pulls/{number}/reviews', payload={
+        ok, rv, err = _gh(env, '-X', 'POST', f'repos/{slug}/pulls/{number}/reviews', payload={
             'commit_id': pr_head, 'event': 'COMMENT', 'body': '',
             'comments': [{'path': it['path'], 'line': it['line'], 'side': it.get('side') or 'RIGHT', 'body': it['body']} for it in inline]})
         if ok:
-            created = _gh_pages(f"repos/{slug}/pulls/{number}/reviews/{rv['id']}/comments")
+            created = _gh_pages(env, f"repos/{slug}/pulls/{number}/reviews/{rv['id']}/comments")
             for it in inline:
                 c = next((c for c in created if c['path'] == it['path'] and _same(c['body'], it['body'])), None)
                 if c:
@@ -433,7 +460,7 @@ def github_post(slug, number, head, items, dry):
                     sent[it['key']] = {'status': 'error', 'error': 'poslano, ali komentar nije pronađen u reviewu'}
         else:
             for it in inline:
-                ok, c, err = _gh('-X', 'POST', f'repos/{slug}/pulls/{number}/comments', payload={
+                ok, c, err = _gh(env, '-X', 'POST', f'repos/{slug}/pulls/{number}/comments', payload={
                     'commit_id': pr_head, 'path': it['path'], 'line': it['line'], 'side': it.get('side') or 'RIGHT', 'body': it['body']})
                 if ok:
                     done(it, c)
@@ -441,9 +468,9 @@ def github_post(slug, number, head, items, dry):
                     sent[it['key']] = {'status': 'error', 'error': err}
     for it in todo:
         if it.get('kind') == 'reply':
-            ok, c, err = _gh('-X', 'POST', f"repos/{slug}/pulls/{number}/comments/{int(it['replyTo'])}/replies", payload={'body': it['body']})
+            ok, c, err = _gh(env, '-X', 'POST', f"repos/{slug}/pulls/{number}/comments/{int(it['replyTo'])}/replies", payload={'body': it['body']})
         elif it.get('kind') == 'general':
-            ok, c, err = _gh('-X', 'POST', f'repos/{slug}/issues/{number}/comments', payload={'body': it['body']})
+            ok, c, err = _gh(env, '-X', 'POST', f'repos/{slug}/issues/{number}/comments', payload={'body': it['body']})
         else:
             continue
         if ok:
