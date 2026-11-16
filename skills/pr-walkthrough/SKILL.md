@@ -8,6 +8,7 @@ description: Walks the user through someone else's pull request so they understa
 - `/pr-walkthrough [repo] <number>`: the whole PR; when there is an earlier page and the PR moved on since, only what changed (see Refresh).
 - `/pr-walkthrough [repo] <number> full`: the whole PR again.
 - `bez ekrana` after the number: no app run, the page has no Ekrani tab.
+- `odgovori` after the number: only the second round, what the author answered to the user's review (see Second round).
 
 It needs the `pr-review` setup: the repo list in `config.local.ps1` (`/pr-review postavi` writes it), local clones, and the optional repo notes `repos\<repo>.md`. Tools: git, Python 3.11 or newer, PowerShell 7. Write in the language the user writes in; the page's own labels are Croatian.
 
@@ -32,6 +33,7 @@ The tools are in `tools\` next to this file (`<tools>` below). Run Python with `
 4. The ticket, if `ticketKey` is set and a tracker connector is available. Without it, say in one line that the ticket was not read.
 5. The repo notes (`notesPath`), especially their `## Terms` section.
 6. An earlier page: `<data>\meta.json` holds the head it was built for. Same head → only refresh status, discussion and findings (steps 4 and 5). Different head and not `full` → Refresh below.
+7. The user already reviewed the PR and the author answered or pushed since: also do the Second round below.
 
 ## 2. Understand before writing
 
@@ -98,7 +100,7 @@ python -I $T\pr_sources.py $R <base> <head> $D\code-panels.json $D\sources.json
 python -I $T\pr_status.py $R <base> <head> $D\harvest.json $D\prstatus.json
 python -I $T\pr_discussion.py $D\harvest.json $D\discussion.json
 python -I $T\pr_db.py $R <base> <head> $D\db.json --no-ai
-python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthrough.html CODE=$D\code-panels.json SOURCES=$D\sources.json OUTLINE=$D\outline.json PRINFO=$D\prstatus.json TOPICS=$D\topics.json HUMAN=$D\topics-human.json LANES=$D\lanes.json META=$D\meta.json DISCUSSION=$D\discussion.json DB=$D\db.json TONE="$HOME\.claude\skills\pr-review\references\ton-komentara.md" [ZOOM=$D\zoom.json] [DELTA=$D\delta.json] [FINDINGS=$D\findings.json]
+python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthrough.html CODE=$D\code-panels.json SOURCES=$D\sources.json OUTLINE=$D\outline.json PRINFO=$D\prstatus.json TOPICS=$D\topics.json HUMAN=$D\topics-human.json LANES=$D\lanes.json META=$D\meta.json DISCUSSION=$D\discussion.json DB=$D\db.json TONE="$HOME\.claude\skills\pr-review\references\ton-komentara.md" [ZOOM=$D\zoom.json] [DELTA=$D\delta.json] [FINDINGS=$D\findings.json] [ROUND=$D\round.json]
 ```
 
 - `pr_topics.py` finds from the diff what the PR touches (migrations, packages, settings, background jobs, external services, permissions, alerts, CI, screens, tests); its rules are for .NET. `pr_packages.py` adds where each changed NuGet package is used and its health from the public NuGet API (only package ids and versions are sent).
@@ -143,6 +145,20 @@ When the PR got new commits since the page was built:
 2. `python -I <tools>\delta.py <localPath> <old head> <new head> <data>` writes `<data>\delta.json` (new commits, changed files and hunks, which panels and zoom steps sit on changed code) and moves `code-spec.json` and `zoom.json` to the new head, keeping `.bak` copies.
 3. Write `summary` in `delta.json`: two to six sentences on what is new and why it matters for the review. Fix a tour text only when `stalePanels` or `staleSteps` say it went out of date.
 4. Run step 5 again with the new head and `DELTA=<data>\delta.json`. The user's comments and saved answers in the page move with the code.
+
+## Second round: answers to the user's review
+
+When the user already reviewed the PR (the harvest's `previousReview.myCommentIds` is not empty) and the author answered or pushed since, the page gets "Što je riješeno" and opens on it: one row per thread the user started or joined, with what the author said, whether the code really changed and a suggested reply. `/pr-walkthrough [repo] <number> odgovori` builds only this, without writing the tour.
+
+1. `python -I <tools>\review_round.py <data>\harvest.json <localPath> <reviewed head> <head> <data>\round.json`, where the reviewed head is `previousReview.baseSha`. It lists the threads, the comments that came after the user's last word, whether the thread is resolved on the host and whether the commits since the review changed code within a few lines of the comment (`codeChanged`, `headLine`). Running it again keeps the judgements of threads that did not change.
+2. For every thread whose `outcome` is null, read the thread and check it in the code at the head (`git show <head>:<file>`, `git grep`). Never take the author's reply as proof: a reply that says something was done while the pushed code does not show it is `open`, and `why` says what is missing (it was probably not pushed).
+   - `outcome`: `fixed` (done in the code, or the thread is resolved and the code agrees), `partly` (part of the request done), `answered` (an explanation without a code change; say in `why` whether it holds), `waiting` (the author passed the question to someone else who has not answered), `open` (no answer, or the answer does not match the code).
+   - `why`: one or two sentences in the user's language, with `file:line` at the head.
+   - `reply`: a suggested reply in the user's voice (the `TONE` rules), only where the user has something to say: accept an explanation, ask for what is missing, point at code that is not there. Null for `fixed` and `waiting`.
+3. `summary` in `round.json`: two or three sentences on how the round went, the threads that need the user first.
+4. Build as in step 5 with `ROUND=<data>\round.json`. Without an earlier page, `code-spec.json` may be `{"repo": …, "base": …, "head": …, "panels": {}}` and `lanes.json` `[]`; the header and a short Zašto are enough.
+
+A saved reply is a general comment with `replyTo`, so it shows in Moji komentari and goes out through the same send button as the other comments.
 
 ## Pitaj Claude (optional)
 

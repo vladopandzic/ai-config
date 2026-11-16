@@ -14,7 +14,7 @@
     list mode  -> { groups:[{ repo, host, prs:[{id,title,author,source,dest,comments,updated,approvers}] }] }
     single     -> { repo, host, pr, url, title, description, author, source, dest, state, headSha,
                     approvals:[{name,approved}], ci:[{state,name}], ticketKey,
-                    comments:[{id,replyTo,author,created,inline,path,line,text}],
+                    comments:[{id,replyTo,author,created,inline,path,line,resolved,text}],
                     fetchSpec, diffPath, diffLines, previousReview, me, localPath, reviewsDir, notesPath }
 #>
 param(
@@ -213,6 +213,15 @@ function New-PreviousReview($myLastAt, $baseSha, $baseSource, $headSha, $fetchSp
   return $result
 }
 
+function Get-GithubResolvedThreadIds($slug) {
+  $owner, $name = $slug -split '/', 2
+  $query = 'query($o: String!, $r: String!, $n: Int!) { repository(owner: $o, name: $r) { pullRequest(number: $n) { reviewThreads(first: 100) { nodes { isResolved comments(first: 1) { nodes { databaseId } } } } } } }'
+  $threads = gh api graphql -f query=$query -F o=$owner -F r=$name -F n=$Pr --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved) | .comments.nodes[0].databaseId' 2>$null
+  $ids = [System.Collections.Generic.HashSet[long]]::new()
+  foreach ($id in @($threads)) { if ($id) { [void]$ids.Add([long]$id) } }
+  return ,$ids
+}
+
 function Get-GithubPullRequest {
   $slug = "$($cfg.owner)/$Repo"
   $view = gh pr view $Pr -R $slug --json title,body,author,headRefName,headRefOid,baseRefName,state,reviews,statusCheckRollup,comments | ConvertFrom-Json
@@ -221,7 +230,8 @@ function Get-GithubPullRequest {
   $myReviews = @(gh api "repos/$slug/pulls/$Pr/reviews" --paginate --jq '.[]' 2>$null | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.user.login -eq $me -and $_.submitted_at })
   $lastReview = $myReviews | Sort-Object { [datetime]$_.submitted_at } -Descending | Select-Object -First 1
   $comments = @($view.comments | ForEach-Object { @{ id = $null; replyTo = $null; author = $_.author.login; created = $_.createdAt; inline = $false; path = $null; line = $null; text = ($_.body -replace '\s+', ' ') } })
-  $comments += @($inline | ForEach-Object { @{ id = $_.id; replyTo = $_.in_reply_to_id; author = $_.user.login; created = $_.created_at; inline = $true; path = $_.path; line = $(if ($_.line) { $_.line } else { $_.original_line }); outdated = -not $_.line; text = ($_.body -replace '\s+', ' ') } })
+  $resolvedThreads = Get-GithubResolvedThreadIds $slug
+  $comments += @($inline | ForEach-Object { @{ id = $_.id; replyTo = $_.in_reply_to_id; author = $_.user.login; created = $_.created_at; inline = $true; path = $_.path; line = $(if ($_.line) { $_.line } else { $_.original_line }); outdated = -not $_.line; resolved = $resolvedThreads.Contains([long]$(if ($_.in_reply_to_id) { $_.in_reply_to_id } else { $_.id })); text = ($_.body -replace '\s+', ' ') } })
   return @{
     title = $view.title; description = $view.body; author = $view.author.login; source = $view.headRefName; dest = $view.baseRefName
     state = $view.state; headSha = $view.headRefOid; me = $me
@@ -239,7 +249,7 @@ function Get-BitbucketPullRequest($headers) {
   $base = "repositories/$($cfg.workspace)/$Repo/pullrequests/$Pr"
   $pullRequest = Invoke-Bitbucket -Headers $headers -Path "$base`?fields=title,description,state,author.display_name,source.branch.name,source.commit.hash,destination.branch.name,participants.approved,participants.role,participants.participated_on,participants.user.display_name,participants.user.account_id"
   $statuses = Get-BitbucketPages $headers "$base/statuses?pagelen=50&fields=values.state,values.name,next"
-  $rawComments = Get-BitbucketPages $headers "$base/comments?pagelen=100&fields=values.id,values.parent.id,values.created_on,values.content.raw,values.user.display_name,values.user.account_id,values.inline.path,values.inline.to,values.deleted,next"
+  $rawComments = Get-BitbucketPages $headers "$base/comments?pagelen=100&fields=values.id,values.parent.id,values.created_on,values.content.raw,values.user.display_name,values.user.account_id,values.inline.path,values.inline.to,values.deleted,values.resolution.type,next"
   $me = Get-Me $cfg $headers
   $liveComments = @($rawComments | Where-Object { -not $_.deleted })
   $myComments = @($liveComments | Where-Object { $me.id -and $_.user.account_id -eq $me.id })
@@ -252,7 +262,7 @@ function Get-BitbucketPullRequest($headers) {
     state = $pullRequest.state; headSha = $pullRequest.source.commit.hash; me = $me.name
     approvals = @($pullRequest.participants | Where-Object { $_.role -eq 'REVIEWER' -or $_.approved } | ForEach-Object { @{ name = $_.user.display_name; approved = [bool]$_.approved } })
     ci = @($statuses | ForEach-Object { @{ state = $_.state; name = $_.name } })
-    comments = @($liveComments | ForEach-Object { @{ id = $_.id; replyTo = $_.parent.id; author = $_.user.display_name; created = [string]$_.created_on; inline = [bool]$_.inline; path = $_.inline.path; line = $_.inline.to; text = ($_.content.raw -replace '\s+', ' ') } })
+    comments = @($liveComments | ForEach-Object { @{ id = $_.id; replyTo = $_.parent.id; author = $_.user.display_name; authorId = $_.user.account_id; created = [string]$_.created_on; inline = [bool]$_.inline; path = $_.inline.path; line = $_.inline.to; resolved = [bool]$_.resolution; text = ($_.content.raw -replace '\s+', ' ') } })
     fetchSpec = "+refs/heads/$($pullRequest.source.branch.name):refs/heads/pr-$Pr"
     myLastAt = $myLastAt
     reviewedSha = $null

@@ -635,6 +635,29 @@
   .rvw-item .b { font: 600 10.5px/1.5 var(--mono); color: var(--red); text-align: right; }
   .rvw-item.taken, .rvw-item.dropped { opacity: .6; }
   .rvw-item.taken .t, .rvw-item.dropped .t { font-weight: 500; }
+  .round-sum { flex-basis: 100%; margin: 2px 0 0; color: var(--fg2); font: 13px/1.5 var(--sans); }
+  .round-sum .round-since { color: var(--fg3); font: 11.5px var(--mono); }
+  .rvw-item.r-open .ic, .rvw-item.r-open .st { color: var(--red); }
+  .rvw-item.r-partly .ic, .rvw-item.r-answered .ic, .rvw-item.r-unjudged .ic { color: var(--amb); }
+  .rvw-item.r-waiting .ic { color: var(--fg3); }
+  .rvw-item.r-fixed .ic { color: var(--add); }
+  .rvw-item.r-fixed .t { font-weight: 500; }
+  .round-verdict { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--rule2); border-left: 3px solid var(--fg3); background: var(--bg2); font: 14px/1.55 var(--sans); }
+  .round-verdict p { margin: 4px 0 0; }
+  .round-verdict.r-open { border-left-color: var(--red); }
+  .round-verdict.r-partly, .round-verdict.r-answered, .round-verdict.r-unjudged { border-left-color: var(--amb); }
+  .round-verdict.r-fixed { border-left-color: var(--add); }
+  .round-verdict-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+  .round-tag { padding: 1px 7px; border: 1px solid var(--rule2); border-radius: 10px; color: var(--fg2); font: 11px/1.5 var(--mono); }
+  .round-talk { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; }
+  .round-msg { padding: 7px 12px; border: 1px solid var(--rule2); border-radius: 4px; background: var(--bg); font: 14px/1.5 var(--sans); }
+  .round-msg.me { border-left: 3px solid var(--blue); }
+  .round-msg.new { border-left: 3px solid var(--amb); }
+  .round-msg-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 2px; color: var(--fg2); font: 600 12px/1.4 var(--sans); }
+  .round-msg-text { white-space: pre-wrap; color: var(--fg); overflow-wrap: anywhere; }
+  .round-new { color: var(--amb); font: 600 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+  .round-reply { margin: 0 0 16px; }
+  .round-reply .my-comment { margin: 0; }
   .rvw-empty { padding: 24px 14px; color: var(--fg3); font: 13.5px var(--sans); }
   .rvw-detail { overflow: auto; padding: 14px 20px 0; }
   .rvw-where { margin: 0 0 6px; font: 12.5px var(--mono); }
@@ -1824,6 +1847,7 @@
   const DELTA = /*__DELTA__*/{};
   const DBV = /*__DB__*/{};
   const FINDINGS = /*__FINDINGS__*/{};
+  const ROUND = /*__ROUND__*/{};
   const TONE = /*__TONE__*/"";
 
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -1900,6 +1924,7 @@
     flow: '<path d="M4 7h11M4 17h11"/><path d="M12 4l3 3-3 3M12 14l3 3-3 3"/><path d="M19 4v16"/>',
     dash: '<path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4.5-5"/><path d="M8 18h8"/>',
     info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.2"/>',
+    check: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.5l3 3 5-6"/>',
   };
   const icon = name => {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -2101,7 +2126,7 @@
   const START_HASH = location.hash || '';
   const START_DB = START_HASH === '#baza';
   const START_RV = START_HASH === '#review';
-  const PGV_HASH = { mine: '#moji-komentari', watch: '#na-sto-paziti', ai: '#ai-objasnjenja' };
+  const PGV_HASH = { round: '#sto-je-rijeseno', mine: '#moji-komentari', watch: '#na-sto-paziti', ai: '#ai-objasnjenja' };
   const pgvOfHash = hash => Object.keys(PGV_HASH).find(k => PGV_HASH[k] === hash);
   // How many of the PR's files the reviewer has marked; one source for the dashboard tab, the Merge card, the menu and the status bar.
   const filesProgress = () => rvProgress();
@@ -2813,7 +2838,8 @@
     });
     myGenerals().filter(g => !g.posted).forEach(g => {
       const f = findById(g.id);
-      out.push({ key: 'G:' + g.id, kind: f?.replyTo ? 'reply' : 'general', body: g.text, replyTo: f?.replyTo || null, manifest: f?.manifest || null, finding: g.id, title: f?.title, unreviewed: isDraft(g) });
+      const replyTo = g.replyTo || f?.replyTo || null;
+      out.push({ key: 'G:' + g.id, kind: replyTo ? 'reply' : 'general', body: g.text, replyTo, manifest: f?.manifest || null, finding: f ? g.id : null, title: g.title || f?.title, unreviewed: isDraft(g) });
     });
     return out;
   }
@@ -2877,7 +2903,7 @@
         const st = check.items?.[it.key]?.status, row = el('label', 'post-it'), cb = el('input'), where = el('div', 'where'), txt = el('div', 'txt');
         cb.type = 'checkbox';
         cb.checked = st !== 'mine-there' && !it.unreviewed && it.verified?.verdict !== 'ne_stoji';
-        if (it.kind === 'general') where.append(it.title || 'Općeniti komentar na PR');
+        if (it.kind === 'general' || (it.kind === 'reply' && !it.path)) where.append(it.title || 'Općeniti komentar na PR');
         else if (it.path) where.append(`${it.path.split('/').pop()}:${it.line}`);
         if (it.kind === 'reply') where.append(el('em', 'reply', 'odgovor u postojećoj niti'));
         if (st === 'mine-there') where.append(el('em', 'warn', 'na ovoj liniji već imaš komentar (možda drukčiji tekst)'));
@@ -5244,8 +5270,8 @@ ${code}
   const rvv = { sel: null, idx: 0, show: 'open', lens: null, takeId: null, busy: false, ctrl: null, q: '', chat: dbStore(RV_ASK_KEY, {}) };
   const RV_SEV = [['high', 'High · kritično'], ['med', 'Med · srednje'], ['low', 'Low · sitnice i pitanja']];
   /* ===== Moji komentari, Na što paziti, AI objašnjenja: svaka je svoja stranica sa svojim URL-om, kao Code review ===== */
-  const pgv = { kind: 'mine', sel: {}, show: 'all' };
-  const PGV_TITLE = { mine: 'Moji komentari', watch: 'Na što paziti', ai: 'AI objašnjenja' };
+  const pgv = { kind: 'mine', sel: {}, show: 'all', roundShow: 'me', roundEdit: null };
+  const PGV_TITLE = { round: 'Što je riješeno', mine: 'Moji komentari', watch: 'Na što paziti', ai: 'AI objašnjenja' };
   const PGV_STATE = { nacrt: ['✦', 'nacrt'], spremno: ['•', 'spremno'], poslano: ['✓', 'poslano'] };
   function pgvIsOpen() { const e = document.getElementById('pgv'); return !!e && !e.hidden; }
   function pgvShow(kind) {
@@ -5295,11 +5321,12 @@ ${code}
   }
   const pgvFirstLine = t => String(t || '').split('\n').find(x => x.trim())?.replace(/[`*>]/g, '').trim().slice(0, 110) || '';
   function pgvItems(kind) {
+    if (kind === 'round') return roundItems();
     if (kind === 'mine') {
       const state = x => x.posted ? 'poslano' : x.ai && !x.reviewed ? 'nacrt' : 'spremno';
       const lines = myComments().slice().sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line).map(c => ({
         id: ckey(c.file, c.side, c.line), group: c.file.split('/').pop(), state: state(c), t: pgvFirstLine(c.text), w: `linija ${c.line}${c.side === 'base' ? ' (stari kod)' : ''}`, c }));
-      const general = myGenerals().map(g => ({ id: 'G:' + g.id, group: 'Općeniti komentari', state: state(g), t: findById(g.id)?.title || pgvFirstLine(g.text), w: 'bez linije', g }));
+      const general = myGenerals().map(g => ({ id: 'G:' + g.id, group: g.replyTo ? 'Odgovori u nitima' : 'Općeniti komentari', state: state(g), t: g.title || findById(g.id)?.title || pgvFirstLine(g.text), w: g.replyTo ? 'odgovor u niti' : 'bez linije', g }));
       return [...general, ...lines].map(x => {
         const verified = x.c && !x.c.posted && checkOf(x.c);
         if (!verified) return { ...x, ic: PGV_STATE[x.state][0], st: PGV_STATE[x.state][1] };
@@ -5316,13 +5343,14 @@ ${code}
   }
   function pgvRender() {
     const box = document.getElementById('pgv'), kind = pgv.kind, listTop = box.querySelector('.rvw-list')?.scrollTop || 0;
-    const all = pgvItems(kind), shown = kind === 'mine' && pgv.show !== 'all' ? all.filter(x => x.state === pgv.show) : all;
+    const all = pgvItems(kind), shown = kind === 'round' ? roundShown(all) : kind === 'mine' && pgv.show !== 'all' ? all.filter(x => x.state === pgv.show) : all;
     if (!shown.some(x => x.id === pgv.sel[kind])) pgv.sel[kind] = shown[0]?.id;
     box.innerHTML = '';
     const root = el('div', 'rvw'), head = el('div', 'rvw-head'), back = el('button', 'db-back', '← Natrag');
     back.type = 'button';
     back.addEventListener('click', pgvClose);
     head.append(back, el('span', 'db-title', PGV_TITLE[kind]));
+    if (kind === 'round') roundHead(head, all);
     if (kind === 'mine') {
       const filters = el('div', 'rvw-filters');
       [['all', 'Svi'], ['nacrt', 'Nacrti'], ['spremno', 'Spremno'], ['poslano', 'Poslano']].forEach(([key, label]) => {
@@ -5354,9 +5382,9 @@ ${code}
       b.addEventListener('click', () => { pgv.sel[kind] = x.id; pgvRender(); });
       list.append(b);
     });
-    if (!shown.length) list.append(el('div', 'rvw-empty', { mine: 'Nema komentara za ovaj filter. Komentar dodaješ s + uz liniju koda.', watch: 'Za ovaj PR nema posebnih upozorenja.', ai: 'Još ništa. Klikni ✦ uz liniju koda i pitaj Claudea, pitanja i odgovori se spremaju ovdje.' }[kind]));
+    if (!shown.length) list.append(el('div', 'rvw-empty', { round: 'Nema niti za ovaj filter.', mine: 'Nema komentara za ovaj filter. Komentar dodaješ s + uz liniju koda.', watch: 'Za ovaj PR nema posebnih upozorenja.', ai: 'Još ništa. Klikni ✦ uz liniju koda i pitaj Claudea, pitanja i odgovori se spremaju ovdje.' }[kind]));
     const sel = shown.find(x => x.id === pgv.sel[kind]);
-    if (sel) detail.append(...(kind === 'mine' ? pgvMineDetail(sel) : kind === 'watch' ? pgvWatchDetail(sel) : pgvAiDetail(sel)));
+    if (sel) detail.append(...(kind === 'round' ? roundDetail(sel) : kind === 'mine' ? pgvMineDetail(sel) : kind === 'watch' ? pgvWatchDetail(sel) : pgvAiDetail(sel)));
     body.append(list, detail);
     root.append(head, body);
     box.append(root);
@@ -5409,6 +5437,138 @@ ${code}
     acts.append(del);
     out.push(acts);
     return out;
+  }
+  /* ===== Što je riješeno: druga runda reviewa po niti. Presude i nacrti odgovora dolaze iz round.json (review_round.py + Claude);
+     spremljen odgovor je opći komentar s replyTo, pa ide kroz isto slanje kao ostali komentari. ===== */
+  const ROUND_THREADS = ROUND.threads || [];
+  const ROUND_LOOK = {
+    open: ['✗', 'nije napravljeno', 'Nije napravljeno'], partly: ['◐', 'djelomično', 'Djelomično napravljeno'],
+    answered: ['?', 'odgovorio bez promjene', 'Odgovorio bez promjene koda'], waiting: ['…', 'čeka drugog', 'Čeka nekog drugog'],
+    unjudged: ['·', 'nije procijenjeno', 'Još nije procijenjeno'], fixed: ['✓', 'riješeno', 'Riješeno'],
+  };
+  const ROUND_ORDER = ['open', 'partly', 'answered', 'unjudged', 'waiting', 'fixed'];
+  const ROUND_FOR_ME = ['open', 'partly', 'answered', 'unjudged'];
+  const ROUND_FILTERS = [['all', 'Sve', () => true], ['me', 'Za tebe', o => ROUND_FOR_ME.includes(o)], ['waiting', 'Čeka drugog', o => o === 'waiting'], ['fixed', 'Riješeno', o => o === 'fixed']];
+  const roundOutcome = t => ROUND_LOOK[t.outcome] ? t.outcome : 'unjudged';
+  const roundKey = t => 'R' + t.id;
+  const roundWhere = t => t.path ? `${t.path.split('/').pop()}:${t.headLine || t.line}` : 'općeniti komentar';
+  const roundForMeCount = () => ROUND_THREADS.filter(t => ROUND_FOR_ME.includes(roundOutcome(t)) && !saved.generals[roundKey(t)]).length;
+  function roundThreadUrl(t) {
+    if (!ROUND.url) return null;
+    return ROUND.host === 'github' ? `${ROUND.url}#discussion_r${t.id}` : `${ROUND.url}#comment-${t.id}`;
+  }
+  function roundItems() {
+    return ROUND_THREADS.map(t => ({ t, o: roundOutcome(t) }))
+      .sort((a, b) => ROUND_ORDER.indexOf(a.o) - ROUND_ORDER.indexOf(b.o))
+      .map(({ t, o }) => {
+        const mine = t.comments.find(c => c.by === 'ti'), reply = saved.generals[roundKey(t)];
+        const st = reply ? (reply.posted ? 'odgovor poslan' : 'odgovor spremljen') : t.comments.some(c => c.new) ? 'novo' : '';
+        return { id: roundKey(t), group: ROUND_LOOK[o][2], ic: ROUND_LOOK[o][0], st, t: pgvFirstLine(mine?.text), w: roundWhere(t), outcome: o, thread: t, state: 'r-' + o };
+      });
+  }
+  function roundHead(head, all) {
+    const filters = el('div', 'rvw-filters');
+    ROUND_FILTERS.forEach(([key, label, match]) => {
+      const b = el('button', pgv.roundShow === key ? 'on' : null, `${label} ${all.filter(x => match(x.outcome)).length}`);
+      b.type = 'button';
+      b.addEventListener('click', () => { pgv.roundShow = key; pgvRender(); });
+      filters.append(b);
+    });
+    head.append(filters);
+    if (postCanSend() && unsentComments().length) head.append(postButton());
+    const since = ROUND.from ? `od tvog reviewa (<code>${String(ROUND.from).slice(0, 7)}</code>) do <code>${String(ROUND.to || '').slice(0, 7)}</code>, ${(ROUND.commits || []).length} commitova` : '';
+    const sum = el('div', 'round-sum');
+    sum.innerHTML = (ROUND.summary ? commentMd(ROUND.summary) + ' ' : '') + (since ? `<span class="round-since">${since}</span>` : '');
+    if (sum.innerHTML) head.append(sum);
+  }
+  const roundShown = all => all.filter(x => (ROUND_FILTERS.find(f => f[0] === pgv.roundShow) || ROUND_FILTERS[0])[2](x.outcome));
+  function roundDetail(x) {
+    const t = x.thread, o = x.outcome, out = [], where = el('div', 'rvw-where');
+    if (t.path) {
+      const line = t.headLine || t.line, go = el('button', 'link-btn', `${t.path}:${line} ↗`);
+      go.type = 'button';
+      go.title = 'Otvori u kodu';
+      go.addEventListener('click', () => pgvToCode(() => pgvOpenLine(t.path, 'head', line)));
+      where.append(go);
+    } else where.append(el('span', null, 'Općeniti komentar na PR'));
+    const url = roundThreadUrl(t);
+    if (url) {
+      const a = el('a', 'link-btn', `nit na ${hostName()}u ↗`);
+      a.href = url; a.target = '_blank'; a.rel = 'noopener';
+      where.append(' · ', a);
+    }
+    out.push(where);
+    const verdict = el('div', 'round-verdict r-' + o), title = el('div', 'round-verdict-head');
+    title.append(el('b', null, `${ROUND_LOOK[o][0]} ${ROUND_LOOK[o][2]}`));
+    if (t.resolved) title.append(el('span', 'round-tag', 'nit riješena na PR-u'));
+    if (t.codeChanged) title.append(el('span', 'round-tag', 'kod oko linije promijenjen'));
+    verdict.append(title);
+    if (t.why) { const p = el('p'); p.innerHTML = commentMd(t.why); verdict.append(p); }
+    out.push(verdict);
+    if (t.path && t.headLine) { const code = rvwSnippet(t.path, 'head', t.headLine); if (code) out.push(code); }
+    const talk = el('div', 'round-talk');
+    t.comments.forEach(c => {
+      const item = el('div', `round-msg${c.by === 'ti' ? ' me' : ''}${c.new ? ' new' : ''}`), head = el('div', 'round-msg-head', c.by === 'ti' ? 'Ti' : c.by), text = el('div', 'round-msg-text');
+      if (c.new) head.append(el('span', 'round-new', 'novo'));
+      text.innerHTML = commentMd(c.text);
+      item.append(head, text);
+      talk.append(item);
+    });
+    out.push(talk, roundReplyBox(t));
+    return out;
+  }
+  function roundReplyBox(t) {
+    const key = roundKey(t), mine = saved.generals[key], editing = pgv.roundEdit === key, box = el('div', 'round-reply');
+    if (mine && !editing) {
+      const view = el('div', 'my-comment'), head = el('div', 'my-comment-head', 'Tvoj odgovor u niti'), text = el('div', 'my-comment-text');
+      text.innerHTML = commentMd(mine.text);
+      if (mine.posted) {
+        const a = el('a', 'posted', `✓ na ${hostName()}u ↗`);
+        a.href = mine.posted.url; a.target = '_blank'; a.rel = 'noopener';
+        head.append(a);
+      } else {
+        const edit = el('button', 'link-btn', 'uredi'), del = el('button', 'link-btn', 'obriši');
+        edit.type = del.type = 'button';
+        edit.addEventListener('click', () => { pgv.roundEdit = key; pgvRender(); });
+        del.addEventListener('click', () => { delete saved.generals[key]; store.save(saved); syncActBar(); pgvRender(); });
+        head.append(edit, del);
+      }
+      view.append(head, text);
+      box.append(view);
+      return box;
+    }
+    if (!t.reply && !editing) {
+      const write = el('button', 'link-btn', 'Napiši odgovor u ovoj niti');
+      write.type = 'button';
+      write.addEventListener('click', () => { pgv.roundEdit = key; pgvRender(); });
+      box.append(write);
+      return box;
+    }
+    const editor = el('div', 'comment-editor rvw-gen'), ta = el('textarea'), bar = el('div', 'comment-editor-bar');
+    ta.rows = 5;
+    ta.value = mine?.text ?? t.reply ?? '';
+    const save = el('button', 'primary', 'Spremi kao moj odgovor'), cancel = el('button', null, 'Odustani');
+    save.type = cancel.type = 'button';
+    save.addEventListener('click', () => {
+      const text = ta.value.trim();
+      if (!text) { ta.focus(); return; }
+      saved.generals[key] = { text, at: new Date().toISOString(), replyTo: t.id, title: `Odgovor: ${roundWhere(t)}` };
+      store.save(saved);
+      pgv.roundEdit = null;
+      syncActBar();
+      pgvRender();
+    });
+    cancel.addEventListener('click', () => { pgv.roundEdit = null; pgvRender(); });
+    ta.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); save.click(); }
+      else if (e.key === 'Escape' && editing) { e.preventDefault(); e.stopPropagation(); cancel.click(); }
+    });
+    bar.append(save);
+    if (editing) bar.append(cancel);
+    bar.append(el('span', 'fd-hint', editing ? 'Ctrl+Enter sprema' : 'Prijedlog odgovora: uredi ga ili spremi kakav je. Ništa ne ide na PR bez Pošalji.'));
+    editor.append(el('div', 'my-comment-head', 'Odgovor u niti'), ta, bar);
+    box.append(editor);
+    return box;
   }
   function rvvIsOpen() { const e = document.getElementById('rvv'); return !!e && !e.hidden; }
   function rvvShow(id) {
@@ -6372,6 +6532,7 @@ ${code}
     if (zkHas) item('zoom', 'layers', 'Zoom kroz kod (Ctrl + kotačić)', () => zk.open ? zkClose() : zkFromContext(1, zk.level || ZK_TOP));
     if (dbHas) item('db', 'database', 'Baza (što PR radi bazi)', () => dbIsOpen() ? dbClose() : dbShow());
     if (FIND.length) item('review', 'review', 'Code review (nalazi)', () => rvvIsOpen() ? rvvClose() : rvvShow());
+    if (ROUND_THREADS.length) item('round', 'check', 'Što je riješeno (odgovori na tvoj review)', () => pgvIsOpen() && pgv.kind === 'round' ? pgvClose() : pgvShow('round'));
     [['watch', 'alert', 'Na što paziti'], ['mine', 'comment', 'Moji komentari'], ['ai', 'spark', 'AI objašnjenja']].forEach(([key, ic, title]) =>
       item(key, ic, title, () => pgvIsOpen() && pgv.kind === key ? pgvClose() : pgvShow(key)));
     document.body.append(bar);
@@ -6385,7 +6546,7 @@ ${code}
     const set = (key, on) => bar.querySelector(`[data-act="${key}"]`)?.classList.toggle('on', on);
     const split = document.body.classList.contains('split');
     const away = zk.open || dbIsOpen() || rvvIsOpen() || pgvIsOpen();
-    ['watch', 'mine', 'ai'].forEach(key => set(key, pgvIsOpen() && pgv.kind === key));
+    ['round', 'watch', 'mine', 'ai'].forEach(key => set(key, pgvIsOpen() && pgv.kind === key));
     set('files', !away && edPage === 'files');
     set('zoom', zk.open);
     set('db', dbIsOpen());
@@ -6400,6 +6561,7 @@ ${code}
     };
     badge('watch', document.querySelectorAll('[id^="paziti-"]').length, 'red');
     badge('mine', myComments().length);
+    badge('round', roundForMeCount(), 'red');
     const findOpenNow = FIND.filter(f => findState(f) === 'open');
     badge('review', findOpenNow.length, findOpenNow.some(f => f.severity === 'high') ? 'red' : '');
     badge('ai', typeof askSaved !== 'undefined' ? askSaved.length : 0);
@@ -7430,6 +7592,7 @@ ${code}
     if (START_DB && dbHas) { document.querySelector('.rv-welcome')?.remove(); dbShow(); return; }
     if (START_RV && FIND.length) { document.querySelector('.rv-welcome')?.remove(); rvvShow(); return; }
     if (pgvOfHash(START_HASH)) { document.querySelector('.rv-welcome')?.remove(); pgvShow(pgvOfHash(START_HASH)); return; }
+    if (!START_HASH && roundForMeCount()) { document.querySelector('.rv-welcome')?.remove(); pgvShow('round'); return; }
     const m = START_HASH.slice(1).match(/^(dashboard|files|ekrani|iza)(?:\?(.*))?$/);
     if (!m || !document.body.classList.contains('ed')) return;
     const q = {};
