@@ -563,6 +563,13 @@
   #pgv[hidden] { display: none; }
   .rvw-item.nacrt .st { color: var(--amb); }
   .rvw-item.poslano .st { color: var(--add); }
+  .rvw-item.odbaceno { opacity: .55; }
+  .rvw-item.odbaceno .t { font-weight: 500; text-decoration: line-through; }
+  .rvw-pick { display: flex; align-items: stretch; }
+  .rvw-pick > .rvw-item { flex: 1; min-width: 0; }
+  .rvw-keep { display: flex; align-items: flex-start; width: 26px; flex-shrink: 0; padding: 11px 0 0 10px; border-bottom: 1px solid var(--rule); cursor: pointer; }
+  .rvw-keep input { margin: 0; cursor: pointer; }
+  .my-comment .dismissed { color: var(--fg3); font-style: normal; }
   .post-open { margin-left: auto; padding: 3px 10px; border: 1px solid var(--blue); border-radius: 3px; background: var(--bg); color: var(--blue); font: 600 12px/1.5 var(--sans); cursor: pointer; }
   .post-open:hover { background: var(--blue); color: var(--bg); }
   .post-dlg { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; background: color-mix(in srgb, #000 45%, transparent); }
@@ -2575,7 +2582,7 @@
   const check = { busy: false, status: '', note: '', ctrl: null };
   // a check counts only for the exact text and PR version it looked at
   const checkOf = c => c.check && c.check.head === META.head && c.check.text === c.text ? c.check : null;
-  const checkReady = () => myComments().filter(c => !c.posted && !(c.ai && !c.reviewed));
+  const checkReady = () => myComments().filter(c => !c.posted && !c.dismissed && !(c.ai && !c.reviewed));
   function checkView(v) {
     const [icon, label] = CHECK_LOOK[v.verdict];
     const box = el('div', 'check-result ' + v.verdict);
@@ -2829,14 +2836,14 @@
      Pomoćnik prvo javi što je već na PR-u i odbije ako se PR pomaknuo od stranice. ===== */
   const postCanSend = () => (META.host === 'github' || META.host === 'bitbucket') && !!META.repo && !!META.number;
   const isDraft = c => !!(c.ai && !c.reviewed);
-  const unsentComments = () => [...myComments().filter(c => !c.posted), ...myGenerals().filter(g => !g.posted)];
+  const unsentComments = () => [...myComments(), ...myGenerals()].filter(c => !c.posted && !c.dismissed);
   function postItems() {
-    const out = myComments().filter(c => !c.posted).map(c => {
+    const out = myComments().filter(c => !c.posted && !c.dismissed).map(c => {
       const f = c.finding ? findById(c.finding) : null;
       return { key: ckey(c.file, c.side, c.line), kind: f?.replyTo ? 'reply' : 'inline', path: c.file, line: c.line, side: c.side === 'base' ? 'LEFT' : 'RIGHT',
                body: c.text, replyTo: f?.replyTo || null, manifest: f?.manifest || null, finding: c.finding || null, unreviewed: isDraft(c), verified: checkOf(c) };
     });
-    myGenerals().filter(g => !g.posted).forEach(g => {
+    myGenerals().filter(g => !g.posted && !g.dismissed).forEach(g => {
       const f = findById(g.id);
       const replyTo = g.replyTo || f?.replyTo || null;
       out.push({ key: 'G:' + g.id, kind: replyTo ? 'reply' : 'general', body: g.text, replyTo, manifest: f?.manifest || null, finding: f ? g.id : null, title: g.title || f?.title, unreviewed: isDraft(g) });
@@ -3003,6 +3010,7 @@
     const edit = el('button', 'link-btn', 'uredi'); edit.dataset.edit = ckey(c.file, c.side, c.line);
     head.append(edit);
     if (c.moved) head.append(el('em', 'moved', 'kod ispod se promijenio od komentara'));
+    if (c.dismissed && !c.posted) head.append(el('em', 'dismissed', 'odbačen: ne šalje se i ne provjerava'));
     if (pending) {
       head.append(el('em', 'ai-draft', 'Claude ga je predložio; ne šalje se dok ga ne prihvatiš'));
       const ok = el('button', 'ai-ok', '✓ U redu'), drop = el('button', 'ai-drop', 'Odbaci');
@@ -5272,7 +5280,7 @@ ${code}
   /* ===== Moji komentari, Na što paziti, AI objašnjenja: svaka je svoja stranica sa svojim URL-om, kao Code review ===== */
   const pgv = { kind: 'mine', sel: {}, show: 'all', roundShow: 'me', roundEdit: null };
   const PGV_TITLE = { round: 'Što je riješeno', mine: 'Moji komentari', watch: 'Na što paziti', ai: 'AI objašnjenja' };
-  const PGV_STATE = { nacrt: ['✦', 'nacrt'], spremno: ['•', 'spremno'], poslano: ['✓', 'poslano'] };
+  const PGV_STATE = { nacrt: ['✦', 'nacrt'], spremno: ['•', 'spremno'], poslano: ['✓', 'poslano'], odbaceno: ['–', 'odbačeno'] };
   function pgvIsOpen() { const e = document.getElementById('pgv'); return !!e && !e.hidden; }
   function pgvShow(kind) {
     if (zk.open) zkClose();
@@ -5323,7 +5331,7 @@ ${code}
   function pgvItems(kind) {
     if (kind === 'round') return roundItems();
     if (kind === 'mine') {
-      const state = x => x.posted ? 'poslano' : x.ai && !x.reviewed ? 'nacrt' : 'spremno';
+      const state = x => x.posted ? 'poslano' : x.dismissed ? 'odbaceno' : x.ai && !x.reviewed ? 'nacrt' : 'spremno';
       const lines = myComments().slice().sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line).map(c => ({
         id: ckey(c.file, c.side, c.line), group: c.file.split('/').pop(), state: state(c), t: pgvFirstLine(c.text), w: `linija ${c.line}${c.side === 'base' ? ' (stari kod)' : ''}`, c }));
       const general = myGenerals().map(g => ({ id: 'G:' + g.id, group: g.replyTo ? 'Odgovori u nitima' : 'Općeniti komentari', state: state(g), t: g.title || findById(g.id)?.title || pgvFirstLine(g.text), w: g.replyTo ? 'odgovor u niti' : 'bez linije', g }));
@@ -5353,7 +5361,7 @@ ${code}
     if (kind === 'round') roundHead(head, all);
     if (kind === 'mine') {
       const filters = el('div', 'rvw-filters');
-      [['all', 'Svi'], ['nacrt', 'Nacrti'], ['spremno', 'Spremno'], ['poslano', 'Poslano']].forEach(([key, label]) => {
+      [['all', 'Svi'], ['nacrt', 'Nacrti'], ['spremno', 'Spremno'], ['poslano', 'Poslano'], ['odbaceno', 'Odbačeni']].forEach(([key, label]) => {
         const n = key === 'all' ? all.length : all.filter(x => x.state === key).length;
         const b = el('button', pgv.show === key ? 'on' : null, `${label} ${n}`);
         b.type = 'button';
@@ -5361,6 +5369,18 @@ ${code}
         filters.append(b);
       });
       head.append(filters);
+      const unsent = [...myComments(), ...Object.values(saved.generals)].filter(c => !c.posted);
+      if (unsent.length) {
+        const allDismissed = unsent.every(c => c.dismissed), bulk = el('button', 'export-btn', allDismissed ? 'Vrati sve' : 'Odbaci sve');
+        bulk.type = 'button';
+        bulk.title = allDismissed ? 'Svi neposlani komentari opet idu u slanje i provjeru.' : 'Odbaci sve neposlane komentare, pa kvačicom vrati one koje želiš zadržati.';
+        bulk.addEventListener('click', () => {
+          unsent.forEach(c => { if (allDismissed) delete c.dismissed; else c.dismissed = true; });
+          store.save(saved);
+          renderMine();
+        });
+        head.append(bulk);
+      }
       const verify = el('button', 'export-btn', check.busy ? 'Zaustavi provjeru' : '✦ Provjeri spremne');
       verify.type = 'button';
       verify.title = 'Claude u kodu provjeri svaki komentar spreman za slanje: stoji li, ponavlja li se, proturječi li drugom. Ništa ne šalje.';
@@ -5380,7 +5400,7 @@ ${code}
       b.type = 'button';
       b.append(el('span', 'ic', x.ic), el('span', 't', x.t), el('span', 'st', x.st), el('span', 'w', x.w));
       b.addEventListener('click', () => { pgv.sel[kind] = x.id; pgvRender(); });
-      list.append(b);
+      list.append(kind === 'mine' ? pgvMineRow(x, b) : b);
     });
     if (!shown.length) list.append(el('div', 'rvw-empty', { round: 'Nema niti za ovaj filter.', mine: 'Nema komentara za ovaj filter. Komentar dodaješ s + uz liniju koda.', watch: 'Za ovaj PR nema posebnih upozorenja.', ai: 'Još ništa. Klikni ✦ uz liniju koda i pitaj Claudea, pitanja i odgovori se spremaju ovdje.' }[kind]));
     const sel = shown.find(x => x.id === pgv.sel[kind]);
@@ -5390,6 +5410,25 @@ ${code}
     box.append(root);
     list.scrollTop = listTop;
     list.querySelector('.sel')?.scrollIntoView({ block: 'nearest' });
+  }
+  // unticked = dismissed: the comment stays saved, but is not sent and not checked
+  function pgvMineRow(x, item) {
+    const row = el('div', 'rvw-pick'), keep = el('label', 'rvw-keep'), comment = x.c || saved.generals[x.g.id];
+    if (comment && !comment.posted) {
+      const box = el('input');
+      box.type = 'checkbox';
+      box.checked = !comment.dismissed;
+      box.title = comment.dismissed ? 'Odbačen: ne šalje se i ne provjerava. Označi da ga vratiš.' : 'Makni kvačicu da odbaciš komentar: ostaje spremljen, ali se ne šalje i ne provjerava.';
+      box.addEventListener('change', () => {
+        if (box.checked) delete comment.dismissed;
+        else comment.dismissed = true;
+        store.save(saved);
+        renderMine();
+      });
+      keep.append(box);
+    }
+    row.append(keep, item);
+    return row;
   }
   function pgvMineDetail(x) {
     if (x.g) {
