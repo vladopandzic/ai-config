@@ -2643,7 +2643,7 @@
   async function checkRun() {
     if (check.busy) { check.ctrl?.abort(); return; }
     const list = checkReady();
-    check.note = !list.length ? 'Nema komentara spremnih za slanje.' : !askCfg.key ? 'Upiši ključ pomoćnika (✦ uz liniju koda, pa ⚙), pa probaj ponovno.' : '';
+    check.note = !list.length ? (myGenerals().some(g => g.replyTo && !g.posted) ? 'Provjera gleda samo komentare na liniji koda. Odgovore u nitima provjerio je Claude kad je slagao Što je riješeno.' : 'Nema komentara spremnih za slanje.') : !askCfg.key ? 'Upiši ključ pomoćnika (✦ uz liniju koda, pa ⚙), pa probaj ponovno.' : '';
     if (!check.note && !(await askPing())) check.note = 'Pomoćnik se ne javlja. Pokreni ga u folderu repoa (python pr-walkthrough-ask.py) pa probaj ponovno.';
     if (check.note) { pgvRender(); return; }
     check.busy = true; check.ctrl = new AbortController();
@@ -5393,12 +5393,13 @@ ${code}
   }
   function pgvMineDetail(x) {
     if (x.g) {
-      const f = findById(x.g.id), out = [el('h3', 'pgv-h', x.t)], box = el('div', 'my-comment'), head = el('div', 'my-comment-head', 'Tvoj opći komentar'), text = el('div', 'my-comment-text');
+      const f = findById(x.g.id), out = [el('h3', 'pgv-h', x.t)], box = el('div', 'my-comment'), head = el('div', 'my-comment-head', x.g.replyTo ? 'Tvoj odgovor u niti' : 'Tvoj opći komentar'), text = el('div', 'my-comment-text');
       text.innerHTML = commentMd(x.g.text);
       if (x.g.posted) { const a = el('a', 'posted', `✓ na ${hostName()}u ↗`); a.href = x.g.posted.url; a.target = '_blank'; a.rel = 'noopener'; head.append(a); }
       box.append(head, text);
       out.push(box);
       if (f) { const go = el('button', 'link-btn', 'Uredi u Code reviewu ↗'); go.type = 'button'; go.addEventListener('click', () => rvvShow(f.id)); out.push(go); }
+      if (x.g.replyTo && ROUND_THREADS.some(t => t.id === x.g.replyTo)) { const go = el('button', 'link-btn', 'Otvori nit u Što je riješeno ↗'); go.type = 'button'; go.addEventListener('click', () => { pgv.sel.round = 'R' + x.g.replyTo; pgvShow('round'); }); out.push(go); }
       return out;
     }
     const c = x.c, where = el('div', 'rvw-where'), go = el('button', 'link-btn', `${c.file}:${c.line} ↗`);
