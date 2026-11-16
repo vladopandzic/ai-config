@@ -657,7 +657,7 @@
   .rvw-item.r-fixed .t { font-weight: 500; }
   .rvw-item.r-ignored { opacity: .5; }
   .rvw-item.r-ignored .t { font-weight: 500; text-decoration: line-through; }
-  .round-verdict .link-btn { margin-top: 6px; }
+  .round-verdict .round-ignore { display: inline-block; margin-top: 8px; }
   .round-verdict { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--rule2); border-left: 3px solid var(--fg3); background: var(--bg2); font: 14px/1.55 var(--sans); }
   .round-verdict p { margin: 4px 0 0; }
   .round-verdict.r-open { border-left-color: var(--red); }
@@ -5447,7 +5447,7 @@ ${code}
       b.type = 'button';
       b.append(el('span', 'ic', x.ic), el('span', 't', x.t), el('span', 'st', x.st), el('span', 'w', x.w));
       b.addEventListener('click', () => { pgv.sel[kind] = x.id; pgvRender(); });
-      list.append(kind === 'mine' ? pgvMineRow(x, b) : b);
+      list.append(kind === 'mine' ? pgvMineRow(x, b) : kind === 'round' ? roundRow(x, b) : b);
     });
     if (!shown.length) list.append(el('div', 'rvw-empty', { round: 'Nema niti za ovaj filter.', mine: 'Nema komentara za ovaj filter. Komentar dodaješ s + uz liniju koda.', watch: 'Za ovaj PR nema posebnih upozorenja.', ai: 'Još ništa. Klikni ✦ uz liniju koda i pitaj Claudea, pitanja i odgovori se spremaju ovdje.' }[kind]));
     const sel = shown.find(x => x.id === pgv.sel[kind]);
@@ -5535,7 +5535,7 @@ ${code}
   };
   const ROUND_ORDER = ['open', 'partly', 'answered', 'unjudged', 'waiting', 'fixed', 'ignored'];
   const ROUND_FOR_ME = ['open', 'partly', 'answered', 'unjudged'];
-  const ROUND_FILTERS = [['all', 'Sve', () => true], ['me', 'Za tebe', o => ROUND_FOR_ME.includes(o)], ['waiting', 'Čeka drugog', o => o === 'waiting'], ['fixed', 'Riješeno', o => o === 'fixed']];
+  const ROUND_FILTERS = [['all', 'Sve', () => true], ['me', 'Za tebe', o => ROUND_FOR_ME.includes(o)], ['waiting', 'Čeka drugog', o => o === 'waiting'], ['fixed', 'Riješeno', o => o === 'fixed'], ['ignored', 'Zanemareno', o => o === 'ignored']];
   const roundIgnored = t => !!saved.roundIgnored?.[t.id];
   const roundOutcome = t => roundIgnored(t) ? 'ignored' : ROUND_LOOK[t.outcome] ? t.outcome : 'unjudged';
   const roundKey = t => 'R' + t.id;
@@ -5604,7 +5604,7 @@ ${code}
     if (t.codeChanged) title.append(el('span', 'round-tag', 'kod oko linije promijenjen'));
     verdict.append(title);
     if (t.why) { const p = el('p'); p.innerHTML = commentMd(t.why); verdict.append(p); }
-    const ignore = el('button', 'link-btn', roundIgnored(t) ? 'Vrati nit' : 'Zanemari ovu nit');
+    const ignore = el('button', 'export-btn round-ignore', roundIgnored(t) ? '↺ Vrati nit' : '✕ Zanemari ovu nit');
     ignore.type = 'button';
     ignore.title = roundIgnored(t) ? 'Nit se opet broji u Za tebe, a njen spremljeni odgovor ide u slanje.' : 'Nit ide na dno i ne broji se u Za tebe; njen spremljeni odgovor se ne šalje.';
     ignore.addEventListener('click', () => roundSetIgnored(t, !roundIgnored(t)));
@@ -5621,6 +5621,17 @@ ${code}
     });
     out.push(talk, roundReplyBox(t));
     return out;
+  }
+  // ticked = the thread counts and its reply is sent; unticking ignores it
+  function roundRow(x, item) {
+    const row = el('div', 'rvw-pick'), keep = el('label', 'rvw-keep'), box = el('input');
+    box.type = 'checkbox';
+    box.checked = !roundIgnored(x.thread);
+    box.title = box.checked ? 'Makni kvačicu da zanemariš nit: ne broji se i njen odgovor se ne šalje.' : 'Zanemarena. Označi da je vratiš.';
+    box.addEventListener('change', () => roundSetIgnored(x.thread, !box.checked));
+    keep.append(box);
+    row.append(keep, item);
+    return row;
   }
   function roundSetIgnored(t, ignored) {
     saved.roundIgnored = saved.roundIgnored || {};
