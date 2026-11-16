@@ -5541,6 +5541,17 @@ ${code}
     if (!ROUND.url) return null;
     return ROUND.host === 'github' ? `${ROUND.url}#discussion_r${t.id}` : `${ROUND.url}#comment-${t.id}`;
   }
+  // a new round starts clean: comments left unsent from earlier rounds are dismissed once (ticking brings them back), round replies stay
+  function roundDismissOldDrafts() {
+    if (!ROUND_THREADS.length || !ROUND.to || saved.roundDraftsFor === ROUND.to) return;
+    const replies = new Set(ROUND_THREADS.map(roundKey));
+    const old = [...Object.values(saved.comments), ...Object.entries(saved.generals).filter(([id]) => !replies.has(id)).map(([, g]) => g)]
+      .filter(c => !c.posted && !c.dismissed);
+    old.forEach(c => { c.dismissed = true; });
+    saved.roundDraftsFor = ROUND.to;
+    saved.roundDraftsDismissed = old.length;
+    store.save(saved);
+  }
   function roundItems() {
     return ROUND_THREADS.map(t => ({ t, o: roundOutcome(t) }))
       .sort((a, b) => ROUND_ORDER.indexOf(a.o) - ROUND_ORDER.indexOf(b.o))
@@ -5562,7 +5573,8 @@ ${code}
     if (postCanSend() && unsentComments().length) head.append(postButton());
     const since = ROUND.from ? `od tvog reviewa (<code>${String(ROUND.from).slice(0, 7)}</code>) do <code>${String(ROUND.to || '').slice(0, 7)}</code>, ${(ROUND.commits || []).length} commitova` : '';
     const sum = el('div', 'round-sum');
-    sum.innerHTML = (ROUND.summary ? commentMd(ROUND.summary) + ' ' : '') + (since ? `<span class="round-since">${since}</span>` : '');
+    const dropped = saved.roundDraftsDismissed ? ` <span class="round-since">· ${saved.roundDraftsDismissed} ${hrPlural(saved.roundDraftsDismissed, 'neposlani komentar', 'neposlana komentara', 'neposlanih komentara')} od prije odbačeno, vratiš ih kvačicom u Moji komentari</span>` : '';
+    sum.innerHTML = (ROUND.summary ? commentMd(ROUND.summary) + ' ' : '') + (since ? `<span class="round-since">${since}</span>` : '') + dropped;
     if (sum.innerHTML) head.append(sum);
   }
   const roundShown = all => all.filter(x => (ROUND_FILTERS.find(f => f[0] === pgv.roundShow) || ROUND_FILTERS[0])[2](x.outcome));
@@ -7663,6 +7675,7 @@ ${code}
   renderPrHead();
   linkCodeMentions();
   setAiNotes(saved.aiNotesInline === true);
+  roundDismissOldDrafts();
   setFindings(saved.findingsInline !== false);
   refreshMyCount();
   // A PR without screens (API-only, desktop app not captured) or without background work just hides that tab.
