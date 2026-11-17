@@ -576,6 +576,57 @@
   .post-review textarea { width: 100%; min-height: 54px; padding: 6px 8px; border: 1px solid var(--rule2); background: var(--bg); color: var(--fg); font: 13px/1.5 var(--sans); resize: vertical; box-sizing: border-box; }
   .post-review textarea[hidden] { display: none; }
   .post-review .why { color: var(--fg3); font: 12px/1.5 var(--sans); }
+  .flow-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; font: 12px var(--sans); color: var(--fg3); }
+  .flow-src { display: inline-block; padding: 0 6px; border: 1px solid var(--rule2); border-radius: 9px; font: 10.5px/1.6 var(--mono); color: var(--fg3); white-space: nowrap; cursor: help; }
+  .flow-src.src-run { border-color: var(--add); background: var(--add-bg); color: var(--add); }
+  .flow-src.src-test { border-color: var(--add); color: var(--add); }
+  .flow-src.src-data { border-color: var(--blue); color: var(--blue); }
+  .flow-src.src-example { border-style: dashed; border-color: var(--amb); color: var(--amb); }
+  .rvw-item.f-ok .ic { color: var(--add); }
+  .rvw-item.f-fail .ic { color: var(--red); }
+  .rvw-item.f-change .ic { color: var(--blue); }
+  .flow-top { margin: 0 0 16px; padding: 10px 14px; max-width: 940px; border: 1px solid var(--rule2); border-left: 3px solid var(--add); background: var(--bg2); }
+  .flow-top.flow-fail { border-left-color: var(--red); }
+  .flow-top.flow-change { border-left-color: var(--blue); }
+  .flow-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 6px; font: 15px/1.4 var(--sans); }
+  .flow-real { border-color: var(--red); color: var(--red); }
+  .flow-line { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; font: 14px/1.55 var(--sans); }
+  .flow-line .k { color: var(--fg3); font: 10.5px/2.1 var(--mono); text-transform: uppercase; letter-spacing: .04em; }
+  .flow-run { margin: 0 0 28px; padding: 0 0 0 12px; list-style: none; }
+  .flow-step { position: relative; padding: 0 0 20px 26px; border-left: 2px solid var(--rule2); }
+  .flow-step:last-child { border-left-color: transparent; }
+  .flow-n { position: absolute; left: -13px; top: 0; width: 24px; height: 24px; border: 1px solid var(--rule2); border-radius: 50%; background: var(--bg3); color: var(--fg2); font: 11px/22px var(--mono); text-align: center; }
+  .flow-step.warn .flow-n { border-color: var(--amb); color: var(--amb); }
+  .flow-step.stop .flow-n { border-color: var(--red); background: var(--red-bg); color: var(--red); }
+  .flow-step-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; max-width: 940px; font: 14px/1.6 var(--sans); }
+  .flow-actor { padding: 0 6px; border-radius: 3px; background: var(--bg3); font: 600 10.5px/1.7 var(--mono); letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
+  .flow-actor.fa-0 { color: var(--blue); }
+  .flow-actor.fa-1 { color: var(--add); }
+  .flow-actor.fa-2 { color: var(--amb); }
+  .flow-actor.fa-3 { color: var(--tk-kw); }
+  .flow-actor.fa-4 { color: var(--tk-fn); }
+  .flow-text { flex: 1 1 320px; min-width: 0; }
+  .flow-vals { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 4px 14px; align-items: baseline; max-width: 940px; margin: 8px 0 0; padding: 8px 12px; border: 1px solid var(--rule2); border-radius: 4px; background: var(--bg2); }
+  .flow-vals .k { color: var(--fg2); font: 12.5px/1.5 var(--sans); }
+  .flow-vals .v { color: var(--fg); font: 12.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+  .flow-vals .v small { display: block; color: var(--fg3); font: 12px/1.45 var(--sans); }
+  .flow-vals del { color: var(--del); }
+  .flow-vals ins { color: var(--add); text-decoration: none; }
+  .flow-vals .to { color: var(--fg3); }
+  .flow-bytes-box { max-width: 940px; margin: 8px 0 0; }
+  .flow-bytes { display: flex; flex-wrap: wrap; gap: 4px; }
+  .flow-cell { display: inline-flex; flex-direction: column; align-items: center; padding: 3px 7px; border-radius: 3px; background: var(--bg3); color: var(--fg3); font: 12px/1.4 var(--mono); }
+  .flow-cell small { color: var(--fg3); font: 9.5px/1.3 var(--sans); }
+  .flow-cell.on { background: var(--amb-bg); color: var(--amb); }
+  .flow-gap { align-self: center; padding: 0 2px; color: var(--fg3); font: 12px var(--mono); }
+  .flow-note { margin: 5px 0 0; color: var(--fg3); font: 12.5px/1.5 var(--sans); }
+  .flow-stop { max-width: 940px; margin: 8px 0 0; padding: 8px 12px; border: 1px solid var(--red); border-left-width: 3px; background: var(--red-bg); font: 13.5px/1.55 var(--sans); }
+  .flow-code { margin: 6px 0 0; }
+  .flow-code .rvw-where { margin: 0; font-size: 12px; }
+  .flow-code .rvw-where .path { color: var(--fg3); }
+  .flow-code .rvw-code { max-width: 940px; margin: 6px 0 0; }
+  .flow-out { max-width: 940px; margin: 8px 0 0; color: var(--fg2); font: 13px/1.5 var(--sans); }
+  .flow-out::before { content: "↓ "; color: var(--fg3); }
   .post-open { margin-left: auto; padding: 3px 10px; border: 1px solid var(--blue); border-radius: 3px; background: var(--bg); color: var(--blue); font: 600 12px/1.5 var(--sans); cursor: pointer; }
   .post-open:hover { background: var(--blue); color: var(--bg); }
   .post-dlg { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; background: color-mix(in srgb, #000 45%, transparent); }
@@ -1864,6 +1915,7 @@
   const DBV = /*__DB__*/{};
   const FINDINGS = /*__FINDINGS__*/{};
   const ROUND = /*__ROUND__*/{};
+  const FLOW = /*__FLOW__*/{};
   const TONE = /*__TONE__*/"";
 
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -2142,7 +2194,7 @@
   const START_HASH = location.hash || '';
   const START_DB = START_HASH === '#baza';
   const START_RV = START_HASH === '#review';
-  const PGV_HASH = { round: '#sto-je-rijeseno', mine: '#moji-komentari', watch: '#na-sto-paziti', ai: '#ai-objasnjenja' };
+  const PGV_HASH = { flow: '#tok-podataka', round: '#sto-je-rijeseno', mine: '#moji-komentari', watch: '#na-sto-paziti', ai: '#ai-objasnjenja' };
   const pgvOfHash = hash => Object.keys(PGV_HASH).find(k => PGV_HASH[k] === hash);
   // How many of the PR's files the reviewer has marked; one source for the dashboard tab, the Merge card, the menu and the status bar.
   const filesProgress = () => rvProgress();
@@ -5326,7 +5378,7 @@ ${code}
   const RV_SEV = [['high', 'High · kritično'], ['med', 'Med · srednje'], ['low', 'Low · sitnice i pitanja']];
   /* ===== Moji komentari, Na što paziti, AI objašnjenja: svaka je svoja stranica sa svojim URL-om, kao Code review ===== */
   const pgv = { kind: 'mine', sel: {}, show: 'all', roundShow: 'me', roundEdit: null };
-  const PGV_TITLE = { round: 'Što je riješeno', mine: 'Moji komentari', watch: 'Na što paziti', ai: 'AI objašnjenja' };
+  const PGV_TITLE = { flow: 'Tok podataka', round: 'Što je riješeno', mine: 'Moji komentari', watch: 'Na što paziti', ai: 'AI objašnjenja' };
   const PGV_STATE = { nacrt: ['✦', 'nacrt'], spremno: ['•', 'spremno'], poslano: ['✓', 'poslano'], odbaceno: ['–', 'odbačeno'] };
   function pgvIsOpen() { const e = document.getElementById('pgv'); return !!e && !e.hidden; }
   function pgvShow(kind) {
@@ -5377,6 +5429,7 @@ ${code}
   const pgvFirstLine = t => String(t || '').split('\n').find(x => x.trim())?.replace(/[`*>]/g, '').trim().slice(0, 110) || '';
   function pgvItems(kind) {
     if (kind === 'round') return roundItems();
+    if (kind === 'flow') return flowItems();
     if (kind === 'mine') {
       const state = x => x.posted ? 'poslano' : x.dismissed ? 'odbaceno' : x.ai && !x.reviewed ? 'nacrt' : 'spremno';
       const lines = myComments().slice().sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line).map(c => ({
@@ -5406,6 +5459,7 @@ ${code}
     back.addEventListener('click', pgvClose);
     head.append(back, el('span', 'db-title', PGV_TITLE[kind]));
     if (kind === 'round') roundHead(head, all);
+    if (kind === 'flow') flowHead(head);
     if (kind === 'mine') {
       const filters = el('div', 'rvw-filters');
       [['all', 'Svi'], ['nacrt', 'Nacrti'], ['spremno', 'Spremno'], ['poslano', 'Poslano'], ['odbaceno', 'Odbačeni']].forEach(([key, label]) => {
@@ -5449,9 +5503,9 @@ ${code}
       b.addEventListener('click', () => { pgv.sel[kind] = x.id; pgvRender(); });
       list.append(kind === 'mine' ? pgvMineRow(x, b) : kind === 'round' ? roundRow(x, b) : b);
     });
-    if (!shown.length) list.append(el('div', 'rvw-empty', { round: 'Nema niti za ovaj filter.', mine: 'Nema komentara za ovaj filter. Komentar dodaješ s + uz liniju koda.', watch: 'Za ovaj PR nema posebnih upozorenja.', ai: 'Još ništa. Klikni ✦ uz liniju koda i pitaj Claudea, pitanja i odgovori se spremaju ovdje.' }[kind]));
+    if (!shown.length) list.append(el('div', 'rvw-empty', { flow: 'Za ovaj PR nema opisanog toka podataka.', round: 'Nema niti za ovaj filter.', mine: 'Nema komentara za ovaj filter. Komentar dodaješ s + uz liniju koda.', watch: 'Za ovaj PR nema posebnih upozorenja.', ai: 'Još ništa. Klikni ✦ uz liniju koda i pitaj Claudea, pitanja i odgovori se spremaju ovdje.' }[kind]));
     const sel = shown.find(x => x.id === pgv.sel[kind]);
-    if (sel) detail.append(...(kind === 'round' ? roundDetail(sel) : kind === 'mine' ? pgvMineDetail(sel) : kind === 'watch' ? pgvWatchDetail(sel) : pgvAiDetail(sel)));
+    if (sel) detail.append(...(kind === 'flow' ? flowDetail(sel) : kind === 'round' ? roundDetail(sel) : kind === 'mine' ? pgvMineDetail(sel) : kind === 'watch' ? pgvWatchDetail(sel) : pgvAiDetail(sel)));
     body.append(list, detail);
     root.append(head, body);
     box.append(root);
@@ -5528,6 +5582,123 @@ ${code}
   /* ===== Što je riješeno: druga runda reviewa po niti. Presude i nacrti odgovora dolaze iz round.json (review_round.py + Claude);
      spremljen odgovor je opći komentar s replyTo, pa ide kroz isto slanje kao ostali komentari. ===== */
   const ROUND_THREADS = ROUND.threads || [];
+  /* ===== Tok podataka: jedno izvršavanje s pravim vrijednostima, korak po korak, i otkud je svaka vrijednost ===== */
+  const FLOW_SCENARIOS = FLOW.scenarios || [];
+  const FLOW_KIND = { ok: ['✓', 'Glavni put'], fail: ['✕', 'Kad nešto ne štima'], change: ['⇄', 'Prije i poslije'] };
+  const FLOW_SRC = {
+    run: ['pokrenuto', 'Vrijednost iz stvarnog pokretanja koda.'],
+    test: ['iz testa', 'Vrijednost iz testa u PR-u.'],
+    data: ['iz podataka', 'Vrijednost iz podataka koje PR nosi ili čita (mapa, ODX, konfiguracija).'],
+    code: ['iz koda', 'Pročitano ili izračunato iz koda, nije pokretano.'],
+    example: ['primjer', 'Izmišljena vrijednost, samo da se vidi oblik.'],
+  };
+  const flowSrcKey = src => FLOW_SRC[src] ? src : 'code';
+  const flowActors = () => FLOW.actors || [...new Set(FLOW_SCENARIOS.flatMap(s => (s.steps || []).map(st => st.where).filter(Boolean)))];
+  function flowItems() {
+    return FLOW_SCENARIOS.map(s => {
+      const kind = FLOW_KIND[s.kind] ? s.kind : 'ok';
+      return { id: 'F' + s.id, group: FLOW_KIND[kind][1], ic: FLOW_KIND[kind][0], t: s.name, st: s.real ? 'događa se danas' : '', w: s.result ? pgvFirstLine(s.result) : '', state: 'f-' + kind, s };
+    });
+  }
+  function flowSrcBadge(src) {
+    const key = flowSrcKey(src), b = el('span', 'flow-src src-' + key, FLOW_SRC[key][0]);
+    b.title = FLOW_SRC[key][1];
+    return b;
+  }
+  function flowHead(head) {
+    const used = new Set(FLOW_SCENARIOS.flatMap(s => (s.steps || []).flatMap(st => [...(st.values || []).map(v => flowSrcKey(v.src)), ...(st.bytes ? [flowSrcKey(st.bytes.src)] : [])])));
+    if (!used.size) return;
+    const legend = el('div', 'flow-legend', 'Otkud vrijednosti:');
+    Object.keys(FLOW_SRC).filter(k => used.has(k)).forEach(k => legend.append(flowSrcBadge(k)));
+    head.append(legend);
+  }
+  function flowMd(cls, md) {
+    const box = el('div', cls);
+    box.innerHTML = commentMd(md);
+    return box;
+  }
+  function flowLine(label, md) {
+    const row = el('div', 'flow-line'), value = el('span');
+    value.innerHTML = commentMd(md);
+    row.append(el('span', 'k', label), value);
+    return row;
+  }
+  function flowValues(values) {
+    const box = el('div', 'flow-vals');
+    values.forEach(v => {
+      const value = el('span', 'v'), changed = v.before != null;
+      if (changed) value.append(el('del', null, String(v.before)), el('span', 'to', ' → '));
+      value.append(el(changed ? 'ins' : 'span', null, String(v.v)));
+      if (v.note) value.append(el('small', null, v.note));
+      box.append(el('span', 'k', v.k), value, flowSrcBadge(v.src));
+    });
+    return box;
+  }
+  function flowBytes(bytes) {
+    const box = el('div', 'flow-bytes-box'), row = el('div', 'flow-bytes');
+    (bytes.cells || []).forEach(c => {
+      if (c.gap) { row.append(el('span', 'flow-gap', c.label || '…')); return; }
+      const cell = el('span', 'flow-cell' + (c.on ? ' on' : ''));
+      cell.append(el('span', null, c.v));
+      if (c.label) cell.append(el('small', null, c.label));
+      row.append(cell);
+    });
+    box.append(row);
+    if (bytes.note || bytes.src) {
+      const note = el('div', 'flow-note');
+      if (bytes.src) note.append(flowSrcBadge(bytes.src), ' ');
+      if (bytes.note) note.append(bytes.note);
+      box.append(note);
+    }
+    return box;
+  }
+  function flowCode(at) {
+    const side = at.side || 'head', line = at.line || 1, wrap = el('div', 'flow-code'), bar = el('div', 'rvw-where');
+    const label = `${at.label || at.file.split('/').pop()}:${line}`;
+    const inPr = !!SRC.files?.[at.file];
+    if (!inPr) { bar.append(el('span', 'path', `${label} · izvan PR-a`)); wrap.append(bar); return wrap; }
+    const go = el('button', 'link-btn', `${label} ↗`);
+    go.type = 'button';
+    go.title = `${at.file}:${line} · otvori u kodu`;
+    go.addEventListener('click', () => pgvToCode(() => pgvOpenLine(at.file, side, line)));
+    bar.append(go);
+    wrap.append(bar);
+    const snippet = rvwSnippet(at.file, side, line);
+    if (!snippet) return wrap;
+    const toggle = el('button', 'link-btn', '▸ pokaži kod');
+    toggle.type = 'button';
+    snippet.hidden = true;
+    toggle.addEventListener('click', () => { snippet.hidden = !snippet.hidden; toggle.textContent = snippet.hidden ? '▸ pokaži kod' : '▾ sakrij kod'; });
+    bar.append(' · ', toggle);
+    wrap.append(snippet);
+    return wrap;
+  }
+  function flowStep(step, index, scenarioId) {
+    const item = el('li', `flow-step${step.stop ? ' stop' : ''}${step.flag === 'warn' ? ' warn' : ''}`), head = el('div', 'flow-step-head'), text = el('span', 'flow-text');
+    head.append(el('span', 'flow-n', String(index + 1)));
+    if (step.where) head.append(el('span', `flow-actor fa-${Math.max(0, flowActors().indexOf(step.where)) % 5}`, step.where));
+    text.innerHTML = commentMd(step.text || '');
+    head.append(text);
+    const codeMovedSince = (DELTA.staleFlowSteps || []).some(([id, i]) => id === scenarioId && i === index);
+    if (codeMovedSince) head.append(el('span', 'round-tag', 'kod ovdje promijenjen u novom commitu'));
+    item.append(head);
+    if (step.values?.length) item.append(flowValues(step.values));
+    if (step.bytes) item.append(flowBytes(step.bytes));
+    if (step.stop) item.append(flowMd('flow-stop', step.stop));
+    if (step.at?.file) item.append(flowCode(step.at));
+    if (step.out) item.append(flowMd('flow-out', step.out));
+    return item;
+  }
+  function flowDetail(x) {
+    const s = x.s, kind = FLOW_KIND[s.kind] ? s.kind : 'ok', top = el('div', 'flow-top flow-' + kind), title = el('div', 'flow-title'), run = el('ol', 'flow-run');
+    title.append(el('b', null, `${x.ic} ${s.name}`));
+    if (s.real) title.append(el('span', 'round-tag flow-real', 'ovo se danas stvarno događa'));
+    top.append(title);
+    if (s.input) top.append(flowLine('Ulaz', s.input));
+    if (s.result) top.append(flowLine('Ishod', s.result));
+    (s.steps || []).forEach((step, i) => run.append(flowStep(step, i, s.id)));
+    return [top, run];
+  }
   const ROUND_LOOK = {
     open: ['✗', 'nije napravljeno', 'Nije napravljeno'], partly: ['◐', 'djelomično', 'Djelomično napravljeno'],
     answered: ['?', 'odgovorio bez promjene', 'Odgovorio bez promjene koda'], waiting: ['…', 'čeka drugog', 'Čeka nekog drugog'],
@@ -6657,6 +6828,7 @@ ${code}
     if (zkHas) item('zoom', 'layers', 'Zoom kroz kod (Ctrl + kotačić)', () => zk.open ? zkClose() : zkFromContext(1, zk.level || ZK_TOP));
     if (dbHas) item('db', 'database', 'Baza (što PR radi bazi)', () => dbIsOpen() ? dbClose() : dbShow());
     if (FIND.length) item('review', 'review', 'Code review (nalazi)', () => rvvIsOpen() ? rvvClose() : rvvShow());
+    if (FLOW_SCENARIOS.length) item('flow', 'flow', 'Tok podataka (jedno izvršavanje s pravim vrijednostima)', () => pgvIsOpen() && pgv.kind === 'flow' ? pgvClose() : pgvShow('flow'));
     if (ROUND_THREADS.length) item('round', 'check', 'Što je riješeno (odgovori na tvoj review)', () => pgvIsOpen() && pgv.kind === 'round' ? pgvClose() : pgvShow('round'));
     [['watch', 'alert', 'Na što paziti'], ['mine', 'comment', 'Moji komentari'], ['ai', 'spark', 'AI objašnjenja']].forEach(([key, ic, title]) =>
       item(key, ic, title, () => pgvIsOpen() && pgv.kind === key ? pgvClose() : pgvShow(key)));
@@ -6671,7 +6843,7 @@ ${code}
     const set = (key, on) => bar.querySelector(`[data-act="${key}"]`)?.classList.toggle('on', on);
     const split = document.body.classList.contains('split');
     const away = zk.open || dbIsOpen() || rvvIsOpen() || pgvIsOpen();
-    ['round', 'watch', 'mine', 'ai'].forEach(key => set(key, pgvIsOpen() && pgv.kind === key));
+    ['flow', 'round', 'watch', 'mine', 'ai'].forEach(key => set(key, pgvIsOpen() && pgv.kind === key));
     set('files', !away && edPage === 'files');
     set('zoom', zk.open);
     set('db', dbIsOpen());

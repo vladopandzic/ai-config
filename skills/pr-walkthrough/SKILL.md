@@ -74,6 +74,13 @@ The tour of the code:
 - `<data>\zoom.json` (optional, for bigger PRs): the zoom levels from the story down to the code (Priča → Područja → Tok poziva → Slojevi → Arhitektura → Kod). Format:
   `{"layers": [{name, sub}], "classes": {key: {name, short?, file?, where?, layer}}, "areas": [{id, name, sum, classes: [], match: [path prefixes]}], "scenarios": [{id, name, area, steps: [{from, to, label, at: {cls, line, file?}, warn?: <number of a "Na što paziti" item>, note?}]}], "story": {"segments": [[text] | [text, areaId]], "before", "after"}}`.
   Every area needs at least one scenario; check every step's line against `git show <head>:<file>`.
+- `<data>\flow.json`: "Tok podataka", one run of the changed code with real values, step by step, so the user sees what happens to the data. Make it for every PR that reads, converts, sends or stores data; leave it out only for a PR that changes text, styling or nothing that runs. Format:
+  `{"actors": [<who acts, in order>], "scenarios": [{id, kind: "ok" | "fail" | "change", real?: true, name, input, result, steps: [{where: <actor>, text, values?: [{k, v, before?, src, note?}], bytes?: {cells: [{v, label?, on?} | {gap: true}], src, note?}, stop?, out?, flag?: "warn", at?: {file, line, side?}}]}]}`
+  - First the main path (`ok`), then every way it fails that the code handles (`fail`). A PR that changes an existing result gets a `change` scenario: the same input, each changed value with `before`.
+  - Every value says where it came from in `src`: `run` (the code was run: a test, a throwaway program or the app), `test` (a value in the PR's tests), `data` (a file or record the PR brings or reads: maps, ODX, configuration, rows), `code` (a constant or a calculation read from the code) or `example` (invented; only when nothing real exists, and the page marks it). Prefer `run` and `data`; never show an invented value as a real one.
+  - For `run` values, run the PR's tests that cover the step, or a small throwaway program against the PR head in a scratch folder. Never commit it and never touch a shared environment.
+  - `out` says in plain words what the step hands to the next one. `stop` ends a failing run with the real message from the code. `real: true` marks a failing path that happens today with today's data. `flag: "warn"` marks a step that belongs to "Na što paziti".
+  - Check it with `python -I <tools>\flow_check.py <localPath> <head> <data>\flow.json`, then read every printed line against its step's text.
 
 Before building, print the line of every note and step from `git show <head>:<file>` and check it says what the text claims.
 
@@ -102,7 +109,7 @@ python -I $T\pr_sources.py $R <base> <head> $D\code-panels.json $D\sources.json
 python -I $T\pr_status.py $R <base> <head> $D\harvest.json $D\prstatus.json
 python -I $T\pr_discussion.py $D\harvest.json $D\discussion.json
 python -I $T\pr_db.py $R <base> <head> $D\db.json --no-ai
-python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthrough.html CODE=$D\code-panels.json SOURCES=$D\sources.json OUTLINE=$D\outline.json PRINFO=$D\prstatus.json TOPICS=$D\topics.json HUMAN=$D\topics-human.json LANES=$D\lanes.json META=$D\meta.json DISCUSSION=$D\discussion.json DB=$D\db.json TONE="$HOME\.claude\skills\pr-review\references\ton-komentara.md" [ZOOM=$D\zoom.json] [DELTA=$D\delta.json] [FINDINGS=$D\findings.json] [ROUND=$D\round.json]
+python -I $T\build_page.py $D\page-template.html <reviewsDir>\<repo>-<n>.walkthrough.html CODE=$D\code-panels.json SOURCES=$D\sources.json OUTLINE=$D\outline.json PRINFO=$D\prstatus.json TOPICS=$D\topics.json HUMAN=$D\topics-human.json LANES=$D\lanes.json META=$D\meta.json DISCUSSION=$D\discussion.json DB=$D\db.json TONE="$HOME\.claude\skills\pr-review\references\ton-komentara.md" [ZOOM=$D\zoom.json] [FLOW=$D\flow.json] [DELTA=$D\delta.json] [FINDINGS=$D\findings.json] [ROUND=$D\round.json]
 ```
 
 - `pr_topics.py` finds from the diff what the PR touches (migrations, packages, settings, background jobs, external services, permissions, alerts, CI, screens, tests); its rules are for .NET. `pr_packages.py` adds where each changed NuGet package is used and its health from the public NuGet API (only package ids and versions are sent).
@@ -144,7 +151,7 @@ Review findings: when `<reviewsDir>\<repo>-<pr>.findings.json` exists, copy it t
 When the PR got new commits since the page was built:
 
 1. Fetch again (step 1.2) and harvest again; the new head is `pr-<n>`.
-2. `python -I <tools>\delta.py <localPath> <old head> <new head> <data>` writes `<data>\delta.json` (new commits, changed files and hunks, which panels and zoom steps sit on changed code) and moves `code-spec.json` and `zoom.json` to the new head, keeping `.bak` copies.
+2. `python -I <tools>\delta.py <localPath> <old head> <new head> <data>` writes `<data>\delta.json` (new commits, changed files and hunks, which panels and zoom steps sit on changed code) and moves `code-spec.json`, `zoom.json` and `flow.json` to the new head, keeping `.bak` copies.
 3. Write `summary` in `delta.json`: two to six sentences on what is new and why it matters for the review. Fix a tour text only when `stalePanels` or `staleSteps` say it went out of date.
 4. Run step 5 again with the new head and `DELTA=<data>\delta.json`. The user's comments and saved answers in the page move with the code.
 

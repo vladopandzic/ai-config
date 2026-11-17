@@ -2,7 +2,7 @@
 
 Writes delta.json: the commits between the tour's head and the new one, every file they touch with the new-head lines
 that changed and the diff hunks (the page maps your comments and AI answers to the new lines with them), and which tour
-snippets and zoom steps sit on changed code. Moves code-spec.json (snippet ranges and notes) and zoom.json (step lines)
+snippets and zoom steps sit on changed code. Moves code-spec.json (snippet ranges and notes), zoom.json and flow.json (step lines)
 to the new head, keeping a .bak of each. "summary" stays empty: the AI writes it from the commits and the diff.
 
 Usage: python -I delta.py <repo> <old head> <new head> <tour dir> [<out delta.json>]
@@ -105,10 +105,28 @@ if zoom_path.exists():
         backup(zoom_path)
         zoom_path.write_text(json.dumps(zoom, ensure_ascii=False, indent=1), encoding='utf-8')
 
+stale_flow_steps = []
+flow_path = tour / 'flow.json'
+if flow_path.exists():
+    flow, moved = json.loads(flow_path.read_text(encoding='utf-8')), False
+    for scen in flow.get('scenarios', []):
+        for i, step in enumerate(scen.get('steps', [])):
+            at = step.get('at')
+            path = at and at.get('file')
+            if not path or path not in files or not at.get('line'):
+                continue
+            at['line'], changed = remap(path, at['line'])
+            moved = True
+            if changed or at['line'] in files[path]['lines']:
+                stale_flow_steps.append([scen.get('id'), i])
+    if moved:
+        backup(flow_path)
+        flow_path.write_text(json.dumps(flow, ensure_ascii=False, indent=1), encoding='utf-8')
+
 delta = {'from': old, 'to': new, 'fromShort': old[:7], 'toShort': new[:7], 'at': time.strftime('%Y-%m-%d'), 'commits': commits,
-         'files': files, 'stalePanels': stale_panels, 'staleSteps': stale_steps, 'summary': ''}
+         'files': files, 'stalePanels': stale_panels, 'staleSteps': stale_steps, 'staleFlowSteps': stale_flow_steps, 'summary': ''}
 prev = json.loads(out.read_text(encoding='utf-8')) if out.exists() else {}
 if prev.get('from') == old and prev.get('to') == new:
     delta['summary'] = prev.get('summary', '')
 out.write_text(json.dumps(delta, ensure_ascii=False, indent=1), encoding='utf-8')
-print(f'{len(commits)} commita, {len(files)} fajlova, {len(stale_panels)} zastarjelih isječaka, {len(stale_steps)} zastarjelih koraka zooma')
+print(f'{len(commits)} commita, {len(files)} fajlova, {len(stale_panels)} zastarjelih isječaka, {len(stale_steps)} zastarjelih koraka zooma, {len(stale_flow_steps)} zastarjelih koraka toka podataka')

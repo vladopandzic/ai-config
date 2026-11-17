@@ -77,7 +77,7 @@ $inputs = @("CODE=$D\code-panels.json", "SOURCES=$D\sources.json", "PRINFO=$D\pr
   "LANES=$D\lanes.json", "META=$D\meta.json", "DISCUSSION=$D\discussion.json", "ROUND=$D\round.json")
 $tone = Join-Path $reviewScripts '..\references\ton-komentara.md'
 if (Test-Path $tone) { $inputs += "TONE=$((Resolve-Path $tone).Path)" }
-foreach ($optional in 'OUTLINE=outline.json', 'ZOOM=zoom.json', 'DB=db.json', 'DELTA=delta.json', 'FINDINGS=findings.json') {
+foreach ($optional in 'OUTLINE=outline.json', 'ZOOM=zoom.json', 'FLOW=flow.json', 'DB=db.json', 'DELTA=delta.json', 'FINDINGS=findings.json') {
   $name, $file = $optional -split '=', 2
   if (Test-Path "$D\$file") { $inputs += "$name=$D\$file" }
 }
