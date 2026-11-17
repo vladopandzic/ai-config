@@ -2317,12 +2317,13 @@
     box.innerHTML = '';
     const merge = el('div', 'merge ' + (nb ? 'bad' : 'good')), ic = el('span', 'ic'), tx = el('span', 'tx');
     ic.append(hico(nb ? 'x' : 'check'));
-    tx.append(el('b', null, nb ? 'Spajanje je blokirano' : 'Može se spojiti'),
+    const isBranch = !META.number;
+    tx.append(el('b', null, isBranch ? (nb ? 'Nije spremno za PR' : 'Spremno za PR') : nb ? 'Spajanje je blokirano' : 'Može se spojiti'),
               el('span', null, [nb && `${nb} ${pl(nb, 'provjera nije prošla', 'provjere nisu prošle', 'provjera nije prošlo')}`, nw && `${nw} ${pl(nw, 'upozorenje', 'upozorenja', 'upozorenja')}`].filter(Boolean).join(' · ') || 'Sve provjere su prošle'));
     const btn = nb ? el('span', 'merge-btn') : (META.prUrl ? ext(META.prUrl, '', 'merge-btn') : el('span', 'merge-btn'));
-    btn.append(hico(nb ? 'lock' : 'merge'), 'Merge');
+    btn.append(hico(nb ? 'lock' : 'merge'), isBranch ? 'Usporedi' : 'Merge');
     if (nb) { btn.setAttribute('aria-disabled', 'true'); btn.title = `Riješi ${nb} ${pl(nb, 'blokadu', 'blokade', 'blokada')}`; }
-    else btn.title = `Otvori PR na ${META.host === 'bitbucket' ? 'Bitbucketu' : META.host === 'azure' ? 'Azure DevOpsu' : 'GitHubu'}`;
+    else btn.title = `${isBranch ? 'Usporedi granu s baznom granom' : 'Otvori PR'} na ${META.host === 'bitbucket' ? 'Bitbucketu' : META.host === 'azure' ? 'Azure DevOpsu' : 'GitHubu'}`;
     merge.append(ic, tx, btn);
     const bar = el('div', 'chk-bar');
     bar.title = `${nb} blokira · ${nw} upozorenja · ${no} prošlo`;

@@ -16,7 +16,7 @@
     <a class="br" data-k="src"></a><span class="sep">→</span><a class="mono" data-k="dest"></a><span class="sep hide-s">·</span><span class="hide-s" data-k="author"></span>
     <span class="sep hide-s">·</span><a class="mono hide-s tour-ver" data-k="ver"></a></span>
     <span class="sp"></span>`;
-  const host = M.host === 'bitbucket' ? 'Bitbucket' : 'GitHub';
+  const host = M.host === 'bitbucket' ? 'Bitbucket' : M.host === 'azure' ? 'Azure DevOps' : 'GitHub';
   const branchUrl = b => b && M.repoUrl ? `${M.repoUrl}/${M.host === 'bitbucket' ? 'branch' : 'tree'}/${b.split('/').map(encodeURIComponent).join('/')}` : '';
   const commitUrl = sha => sha && M.repoUrl ? `${M.repoUrl}/${M.host === 'bitbucket' ? 'commits' : 'commit'}/${sha}` : '';
   const link = (k, text, href, tip) => {
@@ -25,7 +25,7 @@
     if (href && a.tagName === 'A') { a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.title = tip; }
   };
   link('repo', M.repo || '', M.repoUrl, `Repo na ${host}u`);
-  link('pr', `PR #${M.number || ''}`, M.prUrl, `PR na ${host}u`);
+  link('pr', M.number ? `PR #${M.number}` : 'grana, bez PR-a', M.prUrl, M.number ? `PR na ${host}u` : `Usporedba s baznom granom na ${host}u`);
   link('src', P.source || '', branchUrl(P.source), `Grana na ${host}u`);
   link('dest', P.dest || '', branchUrl(P.dest), `Grana na ${host}u`);
   link('author', P.author || '');

@@ -1,6 +1,6 @@
 ---
 name: pr-walkthrough
-description: Walks the user through someone else's pull request so they understand it before reviewing it, as one self-contained HTML page. Explains in plain words what problem it solves and what changes before and after, takes a short tour of the few places in the code that matter in reading order, explains the domain terms and points at where the risk is; the page also shows every changed file with the diff, what kinds of things the PR touches, the PR's status and discussion, and pr-review findings when there are any. Claude only reads; the page's send button posts the user's own comments to GitHub or Bitbucket when the user picks them and clicks Send. Uses the pr-review setup (repo list, local clones, repo notes). Use when the user runs /pr-walkthrough, asks what a PR does or to explain a PR, or asks to refresh or update an existing walkthrough page.
+description: Walks the user through someone else's pull request so they understand it before reviewing it, as one self-contained HTML page. Explains in plain words what problem it solves and what changes before and after, takes a short tour of the few places in the code that matter in reading order, explains the domain terms and points at where the risk is; the page also shows every changed file with the diff, what kinds of things the PR touches, the PR's status and discussion, and pr-review findings when there are any. Also works on a local branch before its pull request exists. Claude only reads; the page's send button posts the user's own comments to GitHub or Bitbucket when the user picks them and clicks Send. Uses the pr-review setup (repo list, local clones, repo notes). Use when the user runs /pr-walkthrough, asks what a PR does or to explain a PR, or asks to refresh or update an existing walkthrough page.
 ---
 
 # PR walkthrough
@@ -11,6 +11,7 @@ description: Walks the user through someone else's pull request so they understa
 - `bez ekrana` after the number: no app run, the page has no Ekrani tab.
 - `odgovori` after the number: only the second round, what the author answered to the user's review (see Second round).
 - `auto` at the end: an unattended run started by a tray app (`claude -p`); see Second round.
+- `/pr-walkthrough grana [<branch>]`: a local branch before its pull request exists (see Branch without a PR).
 
 It needs the `pr-review` setup: the repo list in `config.local.ps1` (`/pr-review postavi` writes it), local clones, and the optional repo notes `repos\<repo>.md`. Tools: git, Python 3.11 or newer, PowerShell 7. Write in the language the user writes in; the page's own labels are Croatian.
 
@@ -159,6 +160,17 @@ When the PR got new commits since the page was built:
 2. `python -I <tools>\delta.py <localPath> <old head> <new head> <data>` writes `<data>\delta.json` (new commits, changed files and hunks, which panels and zoom steps sit on changed code) and moves `code-spec.json`, `zoom.json` and `flow.json` to the new head, keeping `.bak` copies.
 3. Write `summary` in `delta.json`: two to six sentences on what is new and why it matters for the review. Fix a tour text only when `stalePanels` or `staleSteps` say it went out of date.
 4. Run step 5 again with the new head and `DELTA=<data>\delta.json`. The user's comments and saved answers in the page move with the code.
+
+## Branch without a PR
+
+`/pr-walkthrough grana [<branch>]` makes the same page for a local branch before its pull request exists, for example as a step of `start-task … sam`, so the user sees what was done and why before the pull request is opened.
+
+1. The context comes from git, as `pr-review grana` builds it (its section 0b): the repo is the working folder, the branch is the named one or the current one, `git fetch origin <base branch>`, `base` = `git merge-base origin/<base branch> <branch>`, `head` = `git rev-parse <branch>`, the diff goes into the scratchpad, `ticketKey` comes from the branch name.
+2. `reviewsDir` is the task folder: `pwsh -NoProfile -File "$HOME/.claude/skills/pr-review/scripts/artifact-dir.ps1" -Repo <repo> -Key <ticket key, or the branch name>`. `<n>` in Output is the branch name with `/` replaced by `-`.
+3. Reuse the `<repo>-<branch>.harvest.json` that `pr-review grana` left in the task folder when its `headSha` is this head; otherwise write one the same way (`pr: null`, `state: ""`, `comments: []`, `ci: []`, `approvals: []`, `source`, `dest` and `author` from git, `title` and `description` from `pr-description.md` in the task folder or from the commit messages). Save it as `<data>\harvest.json`.
+4. Screens come from `<reviewsDir>\verify\verify.json`, which `verify-app` wrote into the same task folder, and findings from the `*.findings.json` that `pr-review grana` wrote there; use them as in sections 4 and 5, and do not run `verify-app` again when its `target.head` is this head.
+5. Build as in section 5 with `-` instead of the PR number for `pr_meta.py`: the page links to the host's compare view and its title bar says "grana, bez PR-a". There is no Second round and no discussion.
+6. Read files with `git show <branch>:<path>`. The branch may be checked out in a worktree; never switch any checkout.
 
 ## Second round: answers to the user's review
 
