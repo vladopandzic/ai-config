@@ -426,6 +426,7 @@ def github_post(slug, number, head, items, dry, review=None):
     threads = _gh_pages(env, f'repos/{slug}/pulls/{number}/comments')
     general = _gh_pages(env, f'repos/{slug}/issues/{number}/comments')
     mine = [c for c in threads if c['user']['login'] == login]
+    resolved_threads = github_resolved_threads(env, slug, number) if any(it.get('kind') == 'reply' for it in items) else {}
     status = {}
     for it in items:
         k, body = it.get('key'), it.get('body')
@@ -473,6 +474,14 @@ def github_post(slug, number, head, items, dry, review=None):
     for it in todo:
         if it.get('kind') == 'reply':
             ok, c, err = _gh(env, '-X', 'POST', f"repos/{slug}/pulls/{number}/comments/{int(it['replyTo'])}/replies", payload={'body': it['body']})
+            thread_id = resolved_threads.get(int(it['replyTo']))
+            if ok and thread_id:
+                reopened, _, reopen_err = _gh(env, 'graphql', '-f', 'query=mutation($t: ID!) { unresolveReviewThread(input: { threadId: $t }) { thread { isResolved } } }', '-F', f't={thread_id}')
+                done(it, c)
+                sent[it['key']]['reopened'] = reopened
+                if not reopened:
+                    sent[it['key']]['warning'] = f'nit nije ponovno otvorena: {reopen_err}'
+                continue
         elif it.get('kind') == 'general':
             ok, c, err = _gh(env, '-X', 'POST', f'repos/{slug}/issues/{number}/comments', payload={'body': it['body']})
         else:
@@ -487,6 +496,24 @@ def github_post(slug, number, head, items, dry, review=None):
             'commit_id': pr_head, 'event': GITHUB_REVIEW_EVENTS[review['event']], 'body': review['body']})
         result['review'] = {'status': 'sent', 'url': rv.get('html_url', '')} if ok else {'status': 'error', 'error': err}
     return result
+
+
+def github_resolved_threads(env, slug, number):
+    """Resolved review threads of the PR: the id of each thread's first comment -> the thread's node id."""
+    owner, name = slug.split('/', 1)
+    query = ('query($o: String!, $r: String!, $n: Int!) { repository(owner: $o, name: $r) { pullRequest(number: $n) { '
+             'reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId } } } } } } }')
+    ok, body, _ = _gh(env, 'graphql', '-f', f'query={query}', '-F', f'o={owner}', '-F', f'r={name}', '-F', f'n={number}')
+    nodes = (((body or {}).get('data') or {}).get('repository') or {}).get('pullRequest', {}).get('reviewThreads', {}).get('nodes', []) if ok else []
+    return {n['comments']['nodes'][0]['databaseId']: n['id'] for n in nodes if n.get('isResolved') and n['comments']['nodes']}
+
+
+def bitbucket_thread_root(comments, comment_id):
+    by_id = {c['id']: c for c in comments}
+    root = by_id.get(comment_id)
+    while root and (root.get('parent') or {}).get('id') in by_id:
+        root = by_id[root['parent']['id']]
+    return root
 
 
 BITBUCKET_API = 'https://api.bitbucket.org/2.0'
@@ -505,7 +532,7 @@ def environment_value(name):
         return None
 
 
-def _bb(slug, path, write=False, payload=None):
+def _bb(slug, path, write=False, payload=None, method=None):
     """One Bitbucket API call: (ok, data, error). Reads with the workspace's read token, writes only with its write token."""
     ws = re.sub(r'\W', '_', slug.split('/')[0]).upper()
     email = environment_value(f'BITBUCKET_{ws}_EMAIL')
@@ -513,13 +540,13 @@ def _bb(slug, path, write=False, payload=None):
     if not email or not token:
         return False, None, f"nema tokena BITBUCKET_{ws}_EMAIL / BITBUCKET_{ws}_{'TOKEN_WRITE' if write else 'TOKEN'}"
     url = path if path.startswith(BITBUCKET_API) else BITBUCKET_API + (path if path.startswith('/') else f'/repositories/{slug}/{path}')
-    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8') if payload is not None else None, method='POST' if payload is not None else 'GET')
+    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8') if payload is not None else None, method=method or ('POST' if payload is not None else 'GET'))
     req.add_header('Authorization', 'Basic ' + base64.b64encode(f'{email}:{token}'.encode('utf-8')).decode('ascii'))
     req.add_header('Accept', 'application/json')
     req.add_header('Content-Type', 'application/json')
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
-            return True, json.loads(r.read().decode('utf-8') or '{}'), ''
+            return True, json.loads(r.read().decode('utf-8').strip() or '{}'), ''
     except urllib.error.HTTPError as e:
         try:
             detail = json.loads(e.read().decode('utf-8'))['error']['message']
@@ -589,6 +616,12 @@ def bitbucket_post(slug, number, head, items, dry, review=None):
         ok, c, err = _bb(slug, f'pullrequests/{number}/comments', write=True, payload=payload)
         if ok:
             sent[it['key']] = {'status': 'sent', 'id': c['id'], 'url': url(c)}
+            root = bitbucket_thread_root(comments, int(it['replyTo'])) if it.get('kind') == 'reply' else None
+            if root and root.get('resolution') is not None:
+                reopened, _, reopen_err = _bb(slug, f"pullrequests/{number}/comments/{root['id']}/resolve", write=True, method='DELETE')
+                sent[it['key']]['reopened'] = reopened
+                if not reopened:
+                    sent[it['key']]['warning'] = f'nit nije ponovno otvorena: {reopen_err}'
         else:
             sent[it['key']] = {'status': 'error', 'error': err}
     result['items'] = {**{k: v for k, v in status.items() if v['status'] == 'posted'}, **sent}

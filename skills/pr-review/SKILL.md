@@ -223,6 +223,7 @@ Objava komentara je javna radnja u korisnikovo ime → **uvijek preview + jedno 
 2. **Potvrda:** pitaj "Objavljujem ovih N na `<repo>#<n>`? (da / ne / brojevi)". Bez izričitog "da" — STOP.
 3. **Objava:** isti poziv s `-Post`. Skripta ispiše ✅/❌ po komentaru i osvježi manifest (`posted=<id>`), pa ponovni poziv ne
    duplira. Inline duplikat postojećeg komentara se preskače osim uz `-Force`. `reply` ide u postojeću nit i nije duplikat.
+   Ako je autor tu nit već razriješio, `reply` je ponovno otvori, da je nađe među otvorenima (preview to najavi s ↺).
    Na GitHubu inline linija koja nije u diffu ide kao općeniti komentar s prefiksom `re: <path>:<line>`.
 
 Nikad ne dodavaj `-Post` sam. Ne mijenjaj ništa u trackeru (Jira i slično).

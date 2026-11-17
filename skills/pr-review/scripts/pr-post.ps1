@@ -16,6 +16,8 @@
    on Azure DevOps comment ids are <threadId>-<commentId> as the harvest gives them).
   On successful -Post, posted=no is rewritten to posted=<id>.
 
+  A reply to a thread the author already resolved reopens that thread, so the author finds it among the open ones.
+
   Dedup: before showing/posting, the script fetches comments already on the PR and flags any draft
   that lands on the same file:line as an existing comment (±2 lines) — or, for general comments, one
   with strong word overlap. Inline duplicates are SKIPPED on -Post unless -Force is given; general
@@ -80,8 +82,10 @@ $sel = @($comments | Where-Object { $want -contains $_.n })
 if ($sel.Count -eq 0) { Write-Output "Nema komentara za odabir ($Only)."; exit 0 }
 
 # --- DEDUP: fetch comments already on the PR and flag drafts that duplicate them (best-effort) ---
-function New-ExistingComment($id, $replyTo, $author, $inline, $path, $line, $text) {
-  [pscustomobject]@{ id = $id; replyTo = $replyTo; author = $author; inline = $inline
+$AZURE_RESOLVED_STATUSES = @('fixed', 'wontFix', 'closed', 'byDesign')
+
+function New-ExistingComment($id, $replyTo, $author, $inline, $path, $line, $text, $resolved = $false) {
+  [pscustomobject]@{ id = $id; replyTo = $replyTo; author = $author; inline = $inline; resolved = [bool]$resolved
                      path = if ($path) { ($path -replace '\\', '/').ToLower() } else { $null }; line = $line; text = (($text -replace '\s+', ' ').Trim()) }
 }
 function Get-ExistingAzureComments {
@@ -92,7 +96,7 @@ function Get-ExistingAzureComments {
     $path = ([string]$thread.threadContext.filePath).TrimStart('/')
     Get-AzureHumanComments $thread | ForEach-Object {
       $replyTo = if ($_.parentCommentId) { Get-AzureCommentId $thread $_.parentCommentId } else { $null }
-      New-ExistingComment (Get-AzureCommentId $thread $_.id) $replyTo $_.author.displayName ([bool]$path) $path (Get-AzureThreadLine $thread) $_.content
+      New-ExistingComment (Get-AzureCommentId $thread $_.id) $replyTo $_.author.displayName ([bool]$path) $path (Get-AzureThreadLine $thread) $_.content ($AZURE_RESOLVED_STATUSES -contains [string]$thread.status)
     }
   })
 }
@@ -101,21 +105,64 @@ function Get-ExistingPrComments {
   if (-not $isGithub) {
     if (-not $readHeaders) { return $null }
     try {
-      $values = Get-BitbucketPages $readHeaders "repositories/$slug/pullrequests/$Pr/comments?pagelen=100&fields=values.id,values.parent.id,values.content.raw,values.user.display_name,values.inline.path,values.inline.to,values.deleted,next"
+      $values = Get-BitbucketPages $readHeaders "repositories/$slug/pullrequests/$Pr/comments?pagelen=100&fields=values.id,values.parent.id,values.content.raw,values.user.display_name,values.inline.path,values.inline.to,values.deleted,values.resolution,next"
     } catch { return $null }
     return , @($values | Where-Object { -not $_.deleted } | ForEach-Object {
-      New-ExistingComment $_.id $_.parent.id $_.user.display_name ([bool]$_.inline) $_.inline.path $_.inline.to $_.content.raw })
+      New-ExistingComment $_.id $_.parent.id $_.user.display_name ([bool]$_.inline) $_.inline.path $_.inline.to $_.content.raw ([bool]$_.resolution) })
   }
   $out = @()
   $inline = @(& gh api "repos/$slug/pulls/$Pr/comments" --paginate --jq '.[]' 2>$null)
   $inlineOk = $LASTEXITCODE -eq 0
+  $resolvedThreads = Get-GithubResolvedThreads
   $out += @($inline | ForEach-Object { $_ | ConvertFrom-Json } | ForEach-Object {
-    New-ExistingComment $_.id $_.in_reply_to_id $_.user.login $true $_.path $_.line $_.body })
+    $rootId = if ($_.in_reply_to_id) { $_.in_reply_to_id } else { $_.id }
+    New-ExistingComment $_.id $_.in_reply_to_id $_.user.login $true $_.path $_.line $_.body $resolvedThreads.ContainsKey([string]$rootId) })
   $general = @(& gh api "repos/$slug/issues/$Pr/comments" --paginate --jq '.[]' 2>$null)
   $out += @($general | ForEach-Object { $_ | ConvertFrom-Json } | ForEach-Object {
     New-ExistingComment $_.id $null $_.user.login $false $null $null $_.body })
   if ($out.Count -eq 0 -and -not $inlineOk) { return $null }
   return , @($out)
+}
+function Get-GithubResolvedThreads {
+  $owner, $name = $slug -split '/', 2
+  $query = 'query($o: String!, $r: String!, $n: Int!) { repository(owner: $o, name: $r) { pullRequest(number: $n) { reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId } } } } } } }'
+  $rows = @(& gh api graphql -f query=$query -F o=$owner -F r=$name -F n=$Pr --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved) | "\(.comments.nodes[0].databaseId) \(.id)"' 2>$null)
+  $threads = @{}
+  foreach ($row in $rows) { $rootId, $threadId = "$row" -split ' ', 2; if ($threadId) { $threads[$rootId] = $threadId } }
+  return $threads
+}
+function Get-ThreadRoot($commentId) {
+  $root = @($existing | Where-Object { "$($_.id)" -eq "$commentId" })[0]
+  while ($root -and $root.replyTo) {
+    $parent = @($existing | Where-Object { "$($_.id)" -eq "$($root.replyTo)" })[0]
+    if (-not $parent) { break }
+    $root = $parent
+  }
+  return $root
+}
+function Open-ResolvedThread($c) {
+  $root = Get-ThreadRoot $c.path
+  if (-not $root -or -not $root.resolved) { return $null }
+  try {
+    switch ($cfg.host) {
+      'github' {
+        $threadId = (Get-GithubResolvedThreads)[[string]$root.id]
+        if (-not $threadId) { return $null }
+        & gh api graphql -f query='mutation($t: ID!) { unresolveReviewThread(input: { threadId: $t }) { thread { isResolved } } }' -F t=$threadId *> $null
+        if ($LASTEXITCODE -ne 0) { throw 'gh api graphql unresolveReviewThread nije uspio' }
+      }
+      'azure' {
+        $threadId = ("$($c.path)" -split '-')[0]
+        $null = Invoke-Azure -Headers $writeHeaders -Uri "$azureApi/pullRequests/$Pr/threads/$threadId" -Method Patch -Body @{ status = 1 }
+      }
+      default {
+        $null = Invoke-Bitbucket -Headers $writeHeaders -Path "repositories/$slug/pullrequests/$Pr/comments/$($root.id)/resolve" -Method Delete
+      }
+    }
+    return 'nit ponovno otvorena'
+  } catch {
+    return "odgovor je objavljen, ali nit nije ponovno otvorena: $($_.Exception.Message)"
+  }
 }
 function Get-PrDiffLines {
   try { $diff = Get-PullRequestDiff $cfg $Pr $readHeaders } catch { return $null }
@@ -219,6 +266,8 @@ if (-not $Post) {
         $q = $parent.text; if ($q.Length -gt 160) { $q = $q.Substring(0, 159) + [char]0x2026 }
         $where = if ($parent.path) { ", {0}:{1}" -f $parent.path, $parent.line } else { "" }
         Write-Output ("   odgovara na {0}{1}: {2}" -f $parent.author, $where, $q)
+        $root = Get-ThreadRoot $c.path
+        if ($root -and $root.resolved) { Write-Output "   ↺ nit je razriješena: objava odgovora će je ponovno otvoriti" }
       }
     } else {
       Write-Output ("#{0} · OPĆENIT — ide u raspravu PR-a, NIJE vezan na liniju koda{1}" -f $c.n, $flag)
@@ -361,6 +410,10 @@ foreach ($c in $sel) {
     'github' { Publish-GithubComment $c }
     'azure' { Publish-AzureComment $c }
     default { Publish-BitbucketComment $c }
+  }
+  if ($r.id -and $c.type -eq 'reply') {
+    $reopened = Open-ResolvedThread $c
+    if ($reopened) { $r.note = (@($r.note, $reopened) | Where-Object { $_ }) -join '; ' }
   }
   if ($r.id) {
     $c.posted = "$($r.id)"; $posted++
