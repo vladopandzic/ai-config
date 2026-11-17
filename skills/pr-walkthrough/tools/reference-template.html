@@ -5809,7 +5809,7 @@ ${code}
       add('path', { d: path, class: 'flow-edge' + (cross ? ' cross' : ''), 'marker-end': 'url(#flow-arrow)' });
       if (!step.carry) return;
       const onArrow = step.payload && step.payload.arrow !== false, cls = 'flow-carry' + (onArrow ? ' has-payload' : '');
-      const label = add('text', cross ? { x: (x1 + 13 * dir + x2) / 2, y: y1 - 6, 'text-anchor': 'middle', class: cls } : { x: x1 + 10, y: (y1 + y2) / 2 + 4, 'text-anchor': 'start', class: cls });
+      const label = add('text', cross ? { x: (x1 + 13 * dir + x2) / 2, y: y1 - 6, 'text-anchor': 'middle', class: cls } : { x: x1 + 16, y: y1 + 17, 'text-anchor': 'start', class: cls });
       label.textContent = onArrow ? `${step.carry} { }` : step.carry;
       if (onArrow) {
         add('title', {}, label).textContent = 'Klikni za primjer poruke';
