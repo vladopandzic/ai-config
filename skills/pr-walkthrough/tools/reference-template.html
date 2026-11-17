@@ -625,8 +625,47 @@
   .flow-code .rvw-where { margin: 0; font-size: 12px; }
   .flow-code .rvw-where .path { color: var(--fg3); }
   .flow-code .rvw-code { max-width: 940px; margin: 6px 0 0; }
-  .flow-out { max-width: 940px; margin: 8px 0 0; color: var(--fg2); font: 13px/1.5 var(--sans); }
-  .flow-out::before { content: "↓ "; color: var(--fg3); }
+  .flow-actor { display: inline-flex; align-items: center; gap: 4px; }
+  .flow-actor .i { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .flow-lanes, .flow-top, .flow-run { flex: none; }
+  .flow-lanes { max-width: 940px; margin: 0 0 18px; padding: 8px 10px 4px; overflow-x: auto; border: 1px solid var(--rule2); border-radius: 6px; background: var(--bg2); }
+  .flow-lanes svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+  .flow-lanes .flow-hint { margin: 2px 0 0; color: var(--fg3); font: 11.5px/1.4 var(--sans); text-align: right; }
+  .flow-lane { color: var(--fg2); }
+  .flow-lane.fa-0, .flow-node.fa-0 { color: var(--blue); }
+  .flow-lane.fa-1, .flow-node.fa-1 { color: var(--add); }
+  .flow-lane.fa-2, .flow-node.fa-2 { color: var(--amb); }
+  .flow-lane.fa-3, .flow-node.fa-3 { color: var(--tk-kw); }
+  .flow-lane.fa-4, .flow-node.fa-4 { color: var(--tk-fn); }
+  .flow-lane-icon { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .flow-lane-name { fill: currentColor; font: 600 12px var(--mono); text-anchor: middle; letter-spacing: .03em; }
+  .flow-lane-sub { fill: var(--fg3); font: 10.5px var(--sans); text-anchor: middle; }
+  .flow-lifeline { stroke: var(--rule2); stroke-width: 1; stroke-dasharray: 3 4; }
+  .flow-edge { fill: none; stroke: var(--fg3); stroke-width: 1.4; }
+  .flow-edge.cross { stroke: var(--fg2); stroke-width: 1.6; }
+  .flow-arrowhead { fill: var(--fg2); }
+  .flow-carry { fill: var(--fg); font: 11px var(--mono); paint-order: stroke; stroke: var(--bg2); stroke-width: 5px; stroke-linejoin: round; }
+  .flow-node { cursor: pointer; }
+  .flow-node circle { fill: var(--bg); stroke: currentColor; stroke-width: 1.6; }
+  .flow-node text { fill: currentColor; font: 600 11px var(--mono); text-anchor: middle; }
+  .flow-node.warn circle { stroke: var(--amb); }
+  .flow-node.stop circle { fill: var(--red-bg); stroke: var(--red); }
+  .flow-node.stop text { fill: var(--red); }
+  .flow-node:hover circle, .flow-node.hot circle { fill: currentColor; }
+  .flow-node:hover text, .flow-node.hot text { fill: var(--bg); }
+  .flow-step.flash { animation: flow-flash 1.4s ease-out; }
+  @keyframes flow-flash { 0% { background: var(--blue-bg); } 100% { background: transparent; } }
+  .flow-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; max-width: 940px; margin: 10px 0 0; }
+  .flow-pill { display: inline-flex; flex-direction: column; gap: 2px; padding: 6px 11px; border: 1px solid var(--rule2); border-radius: 7px; background: var(--bg2); }
+  .flow-pill.on { border-color: var(--amb); background: var(--amb-bg); }
+  .flow-pill small { color: var(--fg3); font: 11px/1.2 var(--sans); }
+  .flow-pill b { color: var(--fg); font: 600 13px/1.3 var(--mono); }
+  .flow-pill.on b { color: var(--amb); }
+  .flow-pill .flow-src { align-self: flex-start; margin-top: 2px; }
+  .flow-op { display: inline-flex; flex-direction: column; align-items: center; min-width: 54px; padding: 0 4px; color: var(--fg3); font: 10.5px/1.2 var(--sans); text-align: center; }
+  .flow-op::after { content: "⟶"; display: block; margin-top: -2px; color: var(--fg2); font: 22px/1 var(--sans); }
+  .flow-out { display: inline-flex; align-items: center; gap: 6px; max-width: 900px; margin: 12px 0 0 -40px; padding: 3px 12px 3px 6px; border: 1px solid var(--rule2); border-radius: 14px; background: var(--bg); color: var(--fg2); font: 12.5px/1.45 var(--sans); }
+  .flow-out::before { content: "↓"; display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--bg3); color: var(--fg); font: 600 11px var(--mono); }
   .post-open { margin-left: auto; padding: 3px 10px; border: 1px solid var(--blue); border-radius: 3px; background: var(--bg); color: var(--blue); font: 600 12px/1.5 var(--sans); cursor: pointer; }
   .post-open:hover { background: var(--blue); color: var(--bg); }
   .post-dlg { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; background: color-mix(in srgb, #000 45%, transparent); }
@@ -1994,6 +2033,13 @@
     info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.2"/>',
     check: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.5l3 3 5-6"/>',
   };
+  Object.assign(ICONS, {
+    laptop: '<rect x="4.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 19h19"/>',
+    server: '<rect x="4" y="4" width="16" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="16" height="6.5" rx="1.5"/><path d="M7.5 7.2h.01M7.5 16.8h.01"/>',
+    chip: '<rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/><path d="M9.5 3.5v3M12 3.5v3M14.5 3.5v3M9.5 17.5v3M12 17.5v3M14.5 17.5v3M3.5 9.5h3M3.5 12h3M3.5 14.5h3M17.5 9.5h3M17.5 12h3M17.5 14.5h3"/>',
+    user: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 3.8-6 7-6s6 2 7 6"/>',
+    browser: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 8.5h17M6.5 6.5h.01M8.5 6.5h.01"/>',
+  });
   const icon = name => {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'i'); s.setAttribute('aria-hidden', 'true');
@@ -5593,7 +5639,11 @@ ${code}
     example: ['primjer', 'Izmišljena vrijednost, samo da se vidi oblik.'],
   };
   const flowSrcKey = src => FLOW_SRC[src] ? src : 'code';
-  const flowActors = () => FLOW.actors || [...new Set(FLOW_SCENARIOS.flatMap(s => (s.steps || []).map(st => st.where).filter(Boolean)))];
+  const FLOW_ACTOR_ICON = { app: 'laptop', server: 'server', store: 'database', device: 'chip', user: 'user', ui: 'browser', file: 'file' };
+  const flowActorList = () => (FLOW.actors || [...new Set(FLOW_SCENARIOS.flatMap(s => (s.steps || []).map(st => st.where).filter(Boolean)))])
+    .map(a => typeof a === 'string' ? { name: a } : a);
+  const flowActorIndex = name => Math.max(0, flowActorList().findIndex(a => a.name === name));
+  const flowActorIcon = name => FLOW_ACTOR_ICON[flowActorList().find(a => a.name === name)?.kind];
   function flowItems() {
     return FLOW_SCENARIOS.map(s => {
       const kind = FLOW_KIND[s.kind] ? s.kind : 'ok';
@@ -5606,7 +5656,7 @@ ${code}
     return b;
   }
   function flowHead(head) {
-    const used = new Set(FLOW_SCENARIOS.flatMap(s => (s.steps || []).flatMap(st => [...(st.values || []).map(v => flowSrcKey(v.src)), ...(st.bytes ? [flowSrcKey(st.bytes.src)] : [])])));
+    const used = new Set(FLOW_SCENARIOS.flatMap(s => (s.steps || []).flatMap(st => [...(st.values || []).map(v => flowSrcKey(v.src)), ...(st.bytes ? [flowSrcKey(st.bytes.src)] : []), ...(st.chain || []).filter(c => c.src).map(c => flowSrcKey(c.src))])));
     if (!used.size) return;
     const legend = el('div', 'flow-legend', 'Otkud vrijednosti:');
     Object.keys(FLOW_SRC).filter(k => used.has(k)).forEach(k => legend.append(flowSrcBadge(k)));
@@ -5673,15 +5723,85 @@ ${code}
     wrap.append(snippet);
     return wrap;
   }
+  function flowJump(index) {
+    const step = document.querySelector(`#pgv .flow-step[data-i="${index}"]`);
+    if (!step) return;
+    step.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    step.classList.remove('flash');
+    void step.offsetWidth;
+    step.classList.add('flash');
+  }
+  function flowLanes(s) {
+    const steps = s.steps || [], actors = flowActorList().filter(a => steps.some(st => st.where === a.name));
+    if (actors.length < 2 || steps.length < 2) return null;
+    const COL = 176, HEAD = 66, ROW = 40, last = actors.length - 1;
+    const labelInLastLane = steps.some((st, i) => st.carry && steps[i + 1] && st.where === steps[i + 1].where && st.where === actors[last].name);
+    const width = COL * actors.length + (labelInLastLane ? 120 : 0), height = HEAD + ROW * steps.length + 6;
+    const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+    const add = (tag, attrs, parent = svg) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); parent.append(n); return n; };
+    const colOf = name => Math.max(0, actors.findIndex(a => a.name === name)), cx = col => COL * col + COL / 2, cy = row => HEAD + ROW * row + ROW / 2;
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.style.maxWidth = width + 'px';
+    const marker = add('marker', { id: 'flow-arrow', viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 7, markerHeight: 7, orient: 'auto' }, add('defs', {}));
+    add('path', { d: 'M0,0 L8,4 L0,8 z', class: 'flow-arrowhead' }, marker);
+    actors.forEach((a, col) => {
+      const lane = add('g', { class: `flow-lane fa-${flowActorIndex(a.name) % 5}` });
+      add('line', { x1: cx(col), y1: HEAD - 4, x2: cx(col), y2: height, class: 'flow-lifeline' }, lane);
+      const kind = FLOW_ACTOR_ICON[a.kind];
+      if (kind) add('svg', { x: cx(col) - 12, y: 2, width: 24, height: 24, viewBox: '0 0 24 24', class: 'flow-lane-icon' }, lane).innerHTML = ICONS[kind];
+      add('text', { x: cx(col), y: 42, class: 'flow-lane-name' }, lane).textContent = a.name.toUpperCase();
+      if (a.sub) add('text', { x: cx(col), y: 56, class: 'flow-lane-sub' }, lane).textContent = a.sub;
+    });
+    steps.slice(0, -1).forEach((step, i) => {
+      const from = colOf(step.where), to = colOf(steps[i + 1].where), x1 = cx(from), x2 = cx(to), y1 = cy(i), y2 = cy(i + 1), cross = from !== to;
+      const dir = to > from ? 1 : -1;
+      const path = cross ? `M${x1 + 13 * dir},${y1} L${x2},${y1} L${x2},${y2 - 15}` : `M${x1},${y1 + 13} L${x1},${y2 - 15}`;
+      add('path', { d: path, class: 'flow-edge' + (cross ? ' cross' : ''), 'marker-end': 'url(#flow-arrow)' });
+      if (!step.carry) return;
+      const label = add('text', cross ? { x: (x1 + x2) / 2, y: y1 - 6, 'text-anchor': 'middle', class: 'flow-carry' } : { x: x1 + 10, y: (y1 + y2) / 2 + 4, 'text-anchor': 'start', class: 'flow-carry' });
+      label.textContent = step.carry;
+    });
+    steps.forEach((step, i) => {
+      const node = add('g', { class: `flow-node fa-${flowActorIndex(step.where) % 5}${step.stop ? ' stop' : ''}${step.flag === 'warn' ? ' warn' : ''}`, 'data-i': i });
+      add('circle', { cx: cx(colOf(step.where)), cy: cy(i), r: 12 }, node);
+      add('text', { x: cx(colOf(step.where)), y: cy(i) + 4 }, node).textContent = String(i + 1);
+      add('title', {}, node).textContent = `${i + 1}. ${pgvFirstLine(step.text)}`;
+      node.addEventListener('click', () => flowJump(i));
+    });
+    const box = el('div', 'flow-lanes');
+    box.append(svg, el('div', 'flow-hint', 'Klikni broj za korak · na strelicama je ono što putuje'));
+    return box;
+  }
+  function flowChain(chain) {
+    const box = el('div', 'flow-chain');
+    chain.forEach(part => {
+      if (part.op != null) { box.append(el('span', 'flow-op', part.op)); return; }
+      const pill = el('span', 'flow-pill' + (part.on ? ' on' : ''));
+      if (part.k) pill.append(el('small', null, part.k));
+      pill.append(el('b', null, String(part.v)));
+      if (part.src) pill.append(flowSrcBadge(part.src));
+      box.append(pill);
+    });
+    return box;
+  }
   function flowStep(step, index, scenarioId) {
     const item = el('li', `flow-step${step.stop ? ' stop' : ''}${step.flag === 'warn' ? ' warn' : ''}`), head = el('div', 'flow-step-head'), text = el('span', 'flow-text');
     head.append(el('span', 'flow-n', String(index + 1)));
-    if (step.where) head.append(el('span', `flow-actor fa-${Math.max(0, flowActors().indexOf(step.where)) % 5}`, step.where));
+    if (step.where) {
+      const actor = el('span', `flow-actor fa-${flowActorIndex(step.where) % 5}`), kind = flowActorIcon(step.where);
+      if (kind) actor.append(icon(kind));
+      actor.append(step.where);
+      head.append(actor);
+    }
     text.innerHTML = commentMd(step.text || '');
     head.append(text);
     const codeMovedSince = (DELTA.staleFlowSteps || []).some(([id, i]) => id === scenarioId && i === index);
     if (codeMovedSince) head.append(el('span', 'round-tag', 'kod ovdje promijenjen u novom commitu'));
+    item.dataset.i = index;
+    item.addEventListener('mouseenter', () => document.querySelector(`#pgv .flow-node[data-i="${index}"]`)?.classList.add('hot'));
+    item.addEventListener('mouseleave', () => document.querySelector(`#pgv .flow-node[data-i="${index}"]`)?.classList.remove('hot'));
     item.append(head);
+    if (step.chain?.length) item.append(flowChain(step.chain));
     if (step.values?.length) item.append(flowValues(step.values));
     if (step.bytes) item.append(flowBytes(step.bytes));
     if (step.stop) item.append(flowMd('flow-stop', step.stop));
@@ -5697,7 +5817,8 @@ ${code}
     if (s.input) top.append(flowLine('Ulaz', s.input));
     if (s.result) top.append(flowLine('Ishod', s.result));
     (s.steps || []).forEach((step, i) => run.append(flowStep(step, i, s.id)));
-    return [top, run];
+    const lanes = flowLanes(s);
+    return lanes ? [top, lanes, run] : [top, run];
   }
   const ROUND_LOOK = {
     open: ['✗', 'nije napravljeno', 'Nije napravljeno'], partly: ['◐', 'djelomično', 'Djelomično napravljeno'],
