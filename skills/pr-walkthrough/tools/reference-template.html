@@ -604,7 +604,7 @@
   .flow-actor.fa-1 { color: var(--add); }
   .flow-actor.fa-2 { color: var(--amb); }
   .flow-actor.fa-3 { color: var(--tk-kw); }
-  .flow-actor.fa-4 { color: var(--tk-fn); }
+  .flow-actor.fa-4 { color: var(--tk-ty); }
   .flow-text { flex: 1 1 320px; min-width: 0; }
   .flow-vals { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 4px 14px; align-items: baseline; max-width: 940px; margin: 8px 0 0; padding: 8px 12px; border: 1px solid var(--rule2); border-radius: 4px; background: var(--bg2); }
   .flow-vals .k { color: var(--fg2); font: 12.5px/1.5 var(--sans); }
@@ -636,7 +636,7 @@
   .flow-lane.fa-1, .flow-node.fa-1 { color: var(--add); }
   .flow-lane.fa-2, .flow-node.fa-2 { color: var(--amb); }
   .flow-lane.fa-3, .flow-node.fa-3 { color: var(--tk-kw); }
-  .flow-lane.fa-4, .flow-node.fa-4 { color: var(--tk-fn); }
+  .flow-lane.fa-4, .flow-node.fa-4 { color: var(--tk-ty); }
   .flow-lane-icon { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   .flow-lane-name { fill: currentColor; font: 600 12px var(--mono); text-anchor: middle; letter-spacing: .03em; }
   .flow-lane-sub { fill: var(--fg3); font: 10.5px var(--sans); text-anchor: middle; }
@@ -5808,7 +5808,7 @@ ${code}
       add('path', { d: path, class: 'flow-edge' + (cross ? ' cross' : ''), 'marker-end': 'url(#flow-arrow)' });
       if (!step.carry) return;
       const onArrow = step.payload && step.payload.arrow !== false, cls = 'flow-carry' + (onArrow ? ' has-payload' : '');
-      const label = add('text', cross ? { x: (x1 + x2) / 2, y: y1 - 6, 'text-anchor': 'middle', class: cls } : { x: x1 + 10, y: (y1 + y2) / 2 + 4, 'text-anchor': 'start', class: cls });
+      const label = add('text', cross ? { x: (x1 + 13 * dir + x2) / 2, y: y1 - 6, 'text-anchor': 'middle', class: cls } : { x: x1 + 10, y: (y1 + y2) / 2 + 4, 'text-anchor': 'start', class: cls });
       label.textContent = onArrow ? `${step.carry} { }` : step.carry;
       if (onArrow) {
         add('title', {}, label).textContent = 'Klikni za primjer poruke';
