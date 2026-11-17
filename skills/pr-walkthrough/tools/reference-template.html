@@ -666,6 +666,22 @@
   .flow-op::after { content: "⟶"; display: block; margin-top: -2px; color: var(--fg2); font: 22px/1 var(--sans); }
   .flow-out { display: inline-flex; align-items: center; gap: 6px; max-width: 900px; margin: 12px 0 0 -40px; padding: 3px 12px 3px 6px; border: 1px solid var(--rule2); border-radius: 14px; background: var(--bg); color: var(--fg2); font: 12.5px/1.45 var(--sans); }
   .flow-out::before { content: "↓"; display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--bg3); color: var(--fg); font: 600 11px var(--mono); }
+  .flow-payload { flex: none; max-width: 940px; margin: 8px 0 0; border: 1px solid var(--rule2); border-radius: 6px; background: var(--bg2); overflow: hidden; }
+  .flow-payload-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 6px 10px; border-bottom: 1px solid var(--rule2); background: var(--bg3); font: 12.5px/1.5 var(--sans); }
+  .flow-payload-head .ic { display: inline-grid; place-items: center; width: 22px; height: 18px; border-radius: 3px; background: var(--bg); color: var(--blue); font: 600 11px var(--mono); }
+  .flow-payload-head b { color: var(--fg); font-weight: 600; }
+  .flow-payload-head .note { flex: 1 1 260px; min-width: 0; color: var(--fg3); font-size: 12px; }
+  .flow-payload-head .link-btn { margin-left: auto; font: 12px var(--sans); }
+  .flow-payload-body { max-height: 300px; margin: 0; padding: 10px 12px; overflow: auto; color: var(--fg); font: 12.5px/1.55 var(--mono); white-space: pre; tab-size: 2; }
+  .flow-payload.full .flow-payload-body { max-height: none; }
+  .flow-payload-body .k { color: var(--tk-attr); }
+  .flow-payload-body .s { color: var(--tk-str); }
+  .flow-payload-body .n { color: var(--tk-num); }
+  .flow-payload-body .meta, .flow-payload-body .meta .k, .flow-payload-body .meta .s { color: var(--fg3); }
+  .flow-payload .flow-bytes-box { margin: 0; padding: 10px 12px; }
+  .flow-payload.hot { box-shadow: 0 0 0 2px var(--blue); }
+  .flow-carry.has-payload { cursor: pointer; fill: var(--blue); }
+  .flow-carry.has-payload:hover { fill: var(--fg); }
   .post-open { margin-left: auto; padding: 3px 10px; border: 1px solid var(--blue); border-radius: 3px; background: var(--bg); color: var(--blue); font: 600 12px/1.5 var(--sans); cursor: pointer; }
   .post-open:hover { background: var(--blue); color: var(--bg); }
   .post-dlg { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; background: color-mix(in srgb, #000 45%, transparent); }
@@ -5656,7 +5672,7 @@ ${code}
     return b;
   }
   function flowHead(head) {
-    const used = new Set(FLOW_SCENARIOS.flatMap(s => (s.steps || []).flatMap(st => [...(st.values || []).map(v => flowSrcKey(v.src)), ...(st.bytes ? [flowSrcKey(st.bytes.src)] : []), ...(st.chain || []).filter(c => c.src).map(c => flowSrcKey(c.src))])));
+    const used = new Set(FLOW_SCENARIOS.flatMap(s => (s.steps || []).flatMap(st => [...(st.values || []).map(v => flowSrcKey(v.src)), ...(st.bytes ? [flowSrcKey(st.bytes.src)] : []), ...(st.chain || []).filter(c => c.src).map(c => flowSrcKey(c.src)), ...(st.payload?.src ? [flowSrcKey(st.payload.src)] : [])])));
     if (!used.size) return;
     const legend = el('div', 'flow-legend', 'Otkud vrijednosti:');
     Object.keys(FLOW_SRC).filter(k => used.has(k)).forEach(k => legend.append(flowSrcBadge(k)));
@@ -5723,13 +5739,46 @@ ${code}
     wrap.append(snippet);
     return wrap;
   }
-  function flowJump(index) {
+  const flowEscape = text => String(text).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  function flowHighlightJson(body) {
+    return body.split('\n').map(line => {
+      const html = flowEscape(line).replace(/("(?:\\.|[^"\\])*")(\s*:)?|\b-?\d+(?:\.\d+)?\b|\b(?:true|false|null)\b/g, (m, str, colon) =>
+        str ? (colon ? `<span class="k">${str}</span>${colon}` : `<span class="s">${str}</span>`) : `<span class="n">${m}</span>`);
+      return /"\$(type|values)"/.test(line) ? `<span class="meta">${html}</span>` : html;
+    }).join('\n');
+  }
+  function flowPayload(payload) {
+    const box = el('div', 'flow-payload'), head = el('div', 'flow-payload-head');
+    head.append(el('span', 'ic', payload.lang === 'bytes' ? '01' : payload.lang === 'json' ? '{ }' : '≡'), el('b', null, payload.title || 'Poruka'));
+    if (payload.src) head.append(flowSrcBadge(payload.src));
+    if (payload.note) head.append(el('span', 'note', payload.note));
+    box.append(head);
+    if (payload.lang === 'bytes') { box.append(flowBytes({ cells: payload.cells || [] })); return box; }
+    const body = el('pre', 'flow-payload-body'), text = String(payload.body || '');
+    if (payload.lang === 'json') body.innerHTML = flowHighlightJson(text); else body.textContent = text;
+    box.append(body);
+    if (text.split('\n').length > 16) {
+      const grow = el('button', 'link-btn', '↕ Cijela poruka');
+      grow.type = 'button';
+      grow.addEventListener('click', () => { box.classList.toggle('full'); grow.textContent = box.classList.contains('full') ? '↕ Skrati' : '↕ Cijela poruka'; });
+      head.append(grow);
+    }
+    const copy = el('button', 'link-btn', 'Kopiraj');
+    copy.type = 'button';
+    copy.addEventListener('click', () => navigator.clipboard?.writeText(text).then(() => { copy.textContent = 'Kopirano ✓'; setTimeout(() => { copy.textContent = 'Kopiraj'; }, 1500); }));
+    head.append(copy);
+    return box;
+  }
+  function flowJump(index, toPayload) {
     const step = document.querySelector(`#pgv .flow-step[data-i="${index}"]`);
     if (!step) return;
-    step.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    step.classList.remove('flash');
-    void step.offsetWidth;
-    step.classList.add('flash');
+    const payload = toPayload && step.querySelector('.flow-payload');
+    (payload || step).scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const target = payload || step, cls = payload ? 'hot' : 'flash';
+    target.classList.remove(cls);
+    void target.offsetWidth;
+    target.classList.add(cls);
+    if (payload) setTimeout(() => payload.classList.remove('hot'), 1600);
   }
   function flowLanes(s) {
     const steps = s.steps || [], actors = flowActorList().filter(a => steps.some(st => st.where === a.name));
@@ -5758,8 +5807,13 @@ ${code}
       const path = cross ? `M${x1 + 13 * dir},${y1} L${x2},${y1} L${x2},${y2 - 15}` : `M${x1},${y1 + 13} L${x1},${y2 - 15}`;
       add('path', { d: path, class: 'flow-edge' + (cross ? ' cross' : ''), 'marker-end': 'url(#flow-arrow)' });
       if (!step.carry) return;
-      const label = add('text', cross ? { x: (x1 + x2) / 2, y: y1 - 6, 'text-anchor': 'middle', class: 'flow-carry' } : { x: x1 + 10, y: (y1 + y2) / 2 + 4, 'text-anchor': 'start', class: 'flow-carry' });
-      label.textContent = step.carry;
+      const onArrow = step.payload && step.payload.arrow !== false, cls = 'flow-carry' + (onArrow ? ' has-payload' : '');
+      const label = add('text', cross ? { x: (x1 + x2) / 2, y: y1 - 6, 'text-anchor': 'middle', class: cls } : { x: x1 + 10, y: (y1 + y2) / 2 + 4, 'text-anchor': 'start', class: cls });
+      label.textContent = onArrow ? `${step.carry} { }` : step.carry;
+      if (onArrow) {
+        add('title', {}, label).textContent = 'Klikni za primjer poruke';
+        label.addEventListener('click', () => flowJump(i, true));
+      }
     });
     steps.forEach((step, i) => {
       const node = add('g', { class: `flow-node fa-${flowActorIndex(step.where) % 5}${step.stop ? ' stop' : ''}${step.flag === 'warn' ? ' warn' : ''}`, 'data-i': i });
@@ -5769,7 +5823,7 @@ ${code}
       node.addEventListener('click', () => flowJump(i));
     });
     const box = el('div', 'flow-lanes');
-    box.append(svg, el('div', 'flow-hint', 'Klikni broj za korak · na strelicama je ono što putuje'));
+    box.append(svg, el('div', 'flow-hint', 'Klikni broj za korak · na strelicama je ono što putuje, { } otvara primjer poruke'));
     return box;
   }
   function flowChain(chain) {
@@ -5807,6 +5861,7 @@ ${code}
     if (step.stop) item.append(flowMd('flow-stop', step.stop));
     if (step.at?.file) item.append(flowCode(step.at));
     if (step.out) item.append(flowMd('flow-out', step.out));
+    if (step.payload) item.append(flowPayload(step.payload));
     return item;
   }
   function flowDetail(x) {

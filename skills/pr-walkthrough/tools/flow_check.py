@@ -33,6 +33,7 @@ for scenario in flow.get('scenarios', []):
     for number, step in enumerate(scenario.get('steps', []), 1):
         sources = [value.get('src', 'code') for value in step.get('values', [])] + ([step['bytes'].get('src', 'code')] if step.get('bytes') else [])
         sources += [part['src'] for part in step.get('chain', []) if 'src' in part]
+        sources += [step['payload']['src']] if step.get('payload', {}).get('src') else []
         problems += [f'{name} step {number}: unknown src {src!r}' for src in sources if src not in SOURCES]
         if 'example' in sources:
             print(f'  {number}. uses an invented example value')
