@@ -5661,8 +5661,9 @@ ${code}
   const flowActorIndex = name => Math.max(0, flowActorList().findIndex(a => a.name === name));
   const flowActorIcon = name => FLOW_ACTOR_ICON[flowActorList().find(a => a.name === name)?.kind];
   function flowItems() {
-    return FLOW_SCENARIOS.map(s => {
-      const kind = FLOW_KIND[s.kind] ? s.kind : 'ok';
+    const kindOf = s => FLOW_KIND[s.kind] ? s.kind : 'ok', order = Object.keys(FLOW_KIND);
+    return FLOW_SCENARIOS.slice().sort((a, b) => order.indexOf(kindOf(a)) - order.indexOf(kindOf(b))).map(s => {
+      const kind = kindOf(s);
       return { id: 'F' + s.id, group: FLOW_KIND[kind][1], ic: FLOW_KIND[kind][0], t: s.name, st: s.real ? 'događa se danas' : '', w: s.result ? pgvFirstLine(s.result) : '', state: 'f-' + kind, s };
     });
   }
