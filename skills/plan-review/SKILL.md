@@ -38,7 +38,7 @@ Go through the ticket and the plan for every unclear or conflicting point: text 
 
 ## 4. Critics in a fresh context
 
-Start critics as subagents. Each gets the ticket, the plan file and the repo path, nothing of the planning conversation, and must check every claim it makes in the code (file and line) instead of guessing. Each returns findings as: severity (high, medium, low), what is wrong or missing, evidence, the change to the plan.
+Start critics as subagents. Each gets the ticket, the plan file and the repo path, nothing of the planning conversation, and must check every claim it makes in the code (file and line) instead of guessing. Each also gets, word for word, the limits this session works under (servers and databases it must not touch, "local databases only", what the user or the `start-tasks` lane allowed), because a subagent cannot see them. Without such limits in its brief a critic uses only local databases and services; it never connects to a shared or test server or database, not even for a read-only query, and reports what it could not check that way as an open point. Each returns findings as: severity (high, medium, low), what is wrong or missing, evidence, the change to the plan.
 
 A finding is only high when it is proven: "this is not possible" or "this breaks" needs the code path (or a simulator or test run) that shows it; a security finding names the way the data really arrives (server-side component state, an HTTP request, a queue). An unproven concern is an open point for section 3, not a high finding. The same goes for a finding that adds a new criterion or new work: it needs evidence that without it something really breaks, otherwise it is low. Plans that grow far beyond the ticket are a failure too.
 

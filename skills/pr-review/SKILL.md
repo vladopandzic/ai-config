@@ -110,6 +110,11 @@ kontekst (repo, host, `localPath`, `reviewsDir`, `fetchSpec`, PR grana, naslov/o
 K/S/N; nije lens i ne spawna se), commit poruke, prošli manifest `<reviewsDir>/<repo>-<pr>*.md` i head prošle runde ako
 postoje. U novoj rundi `testovi` gleda deltu plus otvorene kritične nalaze iz prošle runde, i kad nisu u delti.
 
+**Ograničenja sesije idu u svaki brief, doslovno.** Subagent ne vidi što je ovoj sesiji zabranjeno ili dopušteno: zabranjeni
+serveri i baze, „samo lokalne baze”, što je korisnik ili traka iz `start-tasks` izričito dopustio. Bez takvih uputa u briefu
+vrijedi: samo lokalne baze i lokalni servisi. Spoj na zajednički ili testni server ili bazu (i samo `SELECT`, sqlcmd ili GET
+poziv) subagent ne radi, nego ga vrati kao „nije provjereno: treba <što i gdje>”, a odluku donosi pozivatelj.
+
 Perspektive (`lenses/`):
 `bugs.md` · `arhitektura.md` · `testovi.md` · `sigurnost.md` · `perf.md` · `konvencije.md` · `ticket-fit.md` ·
 `nerijeseni-komentari.md` · `dizajn.md`
