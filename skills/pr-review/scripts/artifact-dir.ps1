@@ -27,8 +27,8 @@ function Resolve-ArtifactRepoName([string]$repo) {
   if (-not $repo) { $repo = (git rev-parse --show-toplevel 2>$null) }
   if (-not $repo) { throw 'artifact-dir: no repo given and the current folder is not a git repository' }
   if (Test-Path $repo -PathType Container) {
-    $top = git -C $repo rev-parse --show-toplevel 2>$null
-    if ($top) { $repo = $top }
+    $commonDir = git -C $repo rev-parse --path-format=absolute --git-common-dir 2>$null
+    if ($commonDir) { return Split-Path (Split-Path $commonDir -Parent) -Leaf }
     return Split-Path $repo -Leaf
   }
   $repo
